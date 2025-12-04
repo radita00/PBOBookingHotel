@@ -7,13 +7,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
-public class users {
+public class Users {
     private int id_user;
     private String username;
     private String password;
     private String role; // ini seperti 'admin', 'pegawai'
 
-    public users() {}
+    public Users() {}
     
     public int getId_user() { return id_user; }
     public void setId_user(int id_user) { this.id_user = id_user; }
@@ -25,14 +25,14 @@ public class users {
     public void setRole(String role) { this.role = role; }
 
     
-    public users login(String username, String password) {
-        users user = null;
+    public Users login(String username, String password) {
+        Users user = null;
         String query = "SELECT * FROM users WHERE username = '" + username 
                         + "' AND password = '" + password + "'";
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             if (rs.next()) {
-                user = new users();
+                user = new Users();
                 user.setId_user(rs.getInt("id_user"));
                 user.setUsername(rs.getString("username"));
                 user.setPassword(rs.getString("password"));
@@ -68,15 +68,15 @@ public class users {
      * Mengambil semua data users/pegawai dari database.
      * Digunakan oleh frmDataPegawai.
      */
-    public ArrayList<users> getAllUsers() {
-        ArrayList<users> listUsers = new ArrayList<>();
+    public ArrayList<Users> getAllUsers() {
+        ArrayList<Users> listUsers = new ArrayList<>();
         // Hanya ambil ID, username, dan role
         String sql = "SELECT id_user, username, role FROM users";
         
         try (ResultSet rs = DBHelper.selectQuery(sql)) {
             
             while (rs.next()) {
-                users user = new users();
+                Users user = new Users();
                 user.setId_user(rs.getInt("id_user"));
                 user.setUsername(rs.getString("username"));
                 user.setRole(rs.getString("role"));

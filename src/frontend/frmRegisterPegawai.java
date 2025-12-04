@@ -1,6 +1,6 @@
 package frontend;
 
-import backend.users;
+import backend.Users;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -98,7 +98,7 @@ public class frmRegisterPegawai extends JFrame {
                 return;
             }
             
-            users newUser = new users();
+            Users newUser = new Users();
             newUser.setUsername(username);
             newUser.setPassword(password); // Note: Password should be hashed in production
             if (newUser.registerPegawai(username, password)) {

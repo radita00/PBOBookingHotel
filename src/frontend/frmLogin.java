@@ -1,6 +1,6 @@
 package frontend;
 
-import backend.users;
+import backend.Users;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -88,7 +88,7 @@ public class frmLogin extends JFrame {
         String username = txtUsername.getText();
         String password = new String(txtPassword.getPassword());
         
-        users user = new users().login(username, password);
+        Users user = new Users().login(username, password);
 
         if (user != null) {
             JOptionPane.showMessageDialog(null, "Login Berhasil! Selamat datang, " + user.getUsername(), "Sukses", JOptionPane.INFORMATION_MESSAGE);
