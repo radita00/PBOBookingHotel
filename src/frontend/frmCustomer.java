@@ -1,6 +1,5 @@
 package frontend;
-
-import bookinghotel.Customer;
+import frontend.Customer;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;

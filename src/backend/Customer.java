@@ -1,4 +1,4 @@
-package bookinghotel;
+package backend;
 
 import backend.DBHelper;
 import java.sql.*;
