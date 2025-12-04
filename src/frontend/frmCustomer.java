@@ -1,5 +1,5 @@
 package frontend;
-import frontend.Customer;
+import backend.Customer;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.util.ArrayList;
