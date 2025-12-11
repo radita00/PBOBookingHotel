@@ -61,6 +61,17 @@ public class Kamar {
     public void setStatus(String status) {
         this.status = status;
     }
+    
+    // Metode bantuan untuk memetakan ResultSet ke objek Kamar
+    private Kamar mapResultSetToKamar(ResultSet rs) throws SQLException {
+        Kamar k = new Kamar();
+        k.setId_kamar(rs.getInt("id_kamar"));
+        k.setNomor_kamar(rs.getString("nomor_kamar"));
+        k.setTipe(rs.getString("tipe"));
+        k.setHarga(rs.getDouble("harga"));
+        k.setStatus(rs.getString("status"));
+        return k;
+    }
 
     public void save() {
         if (this.id_kamar == 0) {
@@ -90,13 +101,23 @@ public class Kamar {
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             while (rs != null && rs.next()) {
-                Kamar k = new Kamar();
-                k.setId_kamar(rs.getInt("id_kamar"));
-                k.setNomor_kamar(rs.getString("nomor_kamar"));
-                k.setTipe(rs.getString("tipe"));
-                k.setHarga(rs.getDouble("harga"));
-                k.setStatus(rs.getString("status"));
-                listKamar.add(k);
+                listKamar.add(mapResultSetToKamar(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return listKamar;
+    }
+    
+    // 🆕 METHOD BARU: Search berdasarkan Nomor Kamar
+    public ArrayList<Kamar> searchKamar(String keyword) {
+        ArrayList<Kamar> listKamar = new ArrayList<>();
+        String query = "SELECT * FROM kamar WHERE nomor_kamar LIKE '%" + keyword + "%' "
+                     + "OR tipe LIKE '%" + keyword + "%'"; // Tambahan opsional: bisa juga mencari berdasarkan tipe
+
+        try (ResultSet rs = DBHelper.selectQuery(query)) {
+            while (rs != null && rs.next()) {
+                listKamar.add(mapResultSetToKamar(rs));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -123,18 +144,13 @@ public class Kamar {
     }
 
     public ArrayList<Kamar> getAvailable() {
+        // Logika sama seperti getAll namun dengan WHERE status='kosong'
         ArrayList<Kamar> listKamar = new ArrayList<>();
         String query = "SELECT * FROM kamar WHERE status = 'kosong'";
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             while (rs != null && rs.next()) {
-                Kamar k = new Kamar();
-                k.setId_kamar(rs.getInt("id_kamar"));
-                k.setNomor_kamar(rs.getString("nomor_kamar"));
-                k.setTipe(rs.getString("tipe"));
-                k.setHarga(rs.getDouble("harga"));
-                k.setStatus(rs.getString("status"));
-                listKamar.add(k);
+                listKamar.add(mapResultSetToKamar(rs));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -157,13 +173,7 @@ public class Kamar {
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             while (rs != null && rs.next()) {
-                Kamar kamar = new Kamar();
-                kamar.setId_kamar(rs.getInt("id_kamar"));
-                kamar.setNomor_kamar(rs.getString("nomor_kamar"));
-                kamar.setTipe(rs.getString("tipe"));
-                kamar.setHarga(rs.getDouble("harga"));
-                kamar.setStatus(rs.getString("status"));
-                listKamar.add(kamar);
+                listKamar.add(mapResultSetToKamar(rs));
             }
         } catch (SQLException e) {
             e.printStackTrace();

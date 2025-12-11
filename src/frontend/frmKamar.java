@@ -5,6 +5,9 @@ import javax.swing.table.DefaultTableModel;
 
 import backend.Kamar;
 
+import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 public class frmKamar extends JFrame {
@@ -12,6 +15,7 @@ public class frmKamar extends JFrame {
     private JComboBox<String> cmbTipe, cmbStatus;
     private JTable tblKamar;
     private JButton btnSimpan, btnHapus, btnClear;
+    private JTextField txtCariKamar; // 🆕 Field baru
     private int idKamarSedangEdit = 0;
 
     public frmKamar() {
@@ -20,7 +24,10 @@ public class frmKamar extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new java.awt.BorderLayout(10, 10));
         
-        // --- Panel Input ---
+        // --- Panel Input dan Search (NORTH) ---
+        JPanel panelNorth = new JPanel(new BorderLayout());
+        
+        // 1. Panel Input (Kiri/Atas)
         JPanel panelInput = new JPanel(new java.awt.GridLayout(5, 2, 5, 10));
         panelInput.setBorder(BorderFactory.createTitledBorder("Input Data Kamar"));
         
@@ -52,20 +59,38 @@ public class frmKamar extends JFrame {
         panelButton.add(btnClear);
         panelInput.add(panelButton);
         
-        add(panelInput, java.awt.BorderLayout.NORTH);
+        // 2. Panel Search (Bawah Panel Input)
+        JPanel panelSearch = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        txtCariKamar = new JTextField(20);
+        JLabel lblCari = new JLabel("Cari No. Kamar/Tipe:");
+        panelSearch.add(lblCari);
+        panelSearch.add(txtCariKamar);
+        
+        panelNorth.add(panelInput, BorderLayout.CENTER);
+        panelNorth.add(panelSearch, BorderLayout.SOUTH); // Letakkan di bawah input
+        
+        add(panelNorth, BorderLayout.NORTH);
         
         // --- Tabel ---
         tblKamar = new JTable();
         JScrollPane scrollPane = new JScrollPane(tblKamar);
-        add(scrollPane, java.awt.BorderLayout.CENTER);
+        add(scrollPane, BorderLayout.CENTER);
         
         // --- LOGIKA ---
-        tampilkanData();
+        tampilkanData(""); // Panggil dengan keyword kosong di awal
+        
+        // 🆕 Listener Pencarian
+        txtCariKamar.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                tampilkanData(txtCariKamar.getText());
+            }
+        });
         
         btnSimpan.addActionListener(e -> simpanData());
         btnClear.addActionListener(e -> clearForm());
         btnHapus.addActionListener(e -> hapusData());
-        btnHapus.setEnabled(false); // Nonaktifkan tombol hapus di awal
+        btnHapus.setEnabled(false);
         
         tblKamar.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -87,11 +112,19 @@ public class frmKamar extends JFrame {
         setLocationRelativeTo(null);
     }
     
-    private void tampilkanData() {
+    // 🔄 Modifikasi method untuk menerima keyword
+    private void tampilkanData(String keyword) {
         String[] kolom = {"ID", "Nomor", "Tipe", "Harga", "Status"};
         DefaultTableModel model = new DefaultTableModel(kolom, 0);
         
-        ArrayList<Kamar> list = new Kamar().getAll();
+        Kamar kamarHelper = new Kamar();
+        ArrayList<Kamar> list;
+        
+        if (keyword.isEmpty()) {
+            list = kamarHelper.getAll();
+        } else {
+            list = kamarHelper.searchKamar(keyword);
+        }
         
         for (Kamar k : list) {
             Object[] row = {
@@ -115,30 +148,26 @@ public class frmKamar extends JFrame {
             
             Kamar k;
             if (idKamarSedangEdit > 0) {
-                // Mode edit - ambil data yang ada
                 k = new Kamar().getById(idKamarSedangEdit);
-                if (k == null) {
+                if (k.getId_kamar() == 0) { // Cek ID yang dikembalikan
                     JOptionPane.showMessageDialog(this, "Data kamar tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
             } else {
-                // Mode tambah data baru
                 k = new Kamar();
             }
             
-            // Set nilai properti
             k.setNomor_kamar(txtNomor.getText());
             k.setTipe(cmbTipe.getSelectedItem().toString());
             k.setHarga(Double.parseDouble(txtHarga.getText()));
             k.setStatus(cmbStatus.getSelectedItem().toString());
             
-            // Simpan ke database
             k.save();
             
             JOptionPane.showMessageDialog(this, 
                 idKamarSedangEdit > 0 ? "Data berhasil diupdate!" : "Data berhasil disimpan!");
                 
-            tampilkanData();
+            tampilkanData("");
             clearForm();
             
         } catch (NumberFormatException e) {
@@ -154,6 +183,8 @@ public class frmKamar extends JFrame {
         cmbStatus.setSelectedIndex(0);
         btnSimpan.setText("Simpan");
         btnHapus.setEnabled(false);
+        txtCariKamar.setText(""); // Bersihkan field search
+        tampilkanData("");
     }
 
     private void hapusData() {
@@ -169,7 +200,7 @@ public class frmKamar extends JFrame {
         if (confirm == JOptionPane.YES_OPTION) {
             if (new Kamar().delete(id)) {
                 JOptionPane.showMessageDialog(this, "Data berhasil dihapus.");
-                tampilkanData();
+                tampilkanData("");
                 clearForm();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menghapus data.", "Error", JOptionPane.ERROR_MESSAGE);
