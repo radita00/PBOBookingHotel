@@ -58,19 +58,19 @@ public class frmLogin extends JFrame {
         txtPassword.addActionListener(loginAction);
         btnLogin.addActionListener(loginAction);
 
-        // Tombol Registrasi Pegawai
-        JButton btnRegister = new JButton("Daftar Pegawai Baru");
-        btnRegister.setBounds(150, 160, 180, 25);
-        btnRegister.setFont(boldFont);
-        btnRegister.setContentAreaFilled(false);
-        btnRegister.setBorderPainted(false);
-        btnRegister.setForeground(Color.BLUE);
-        btnRegister.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnRegister.addActionListener(e -> {
-            new frmRegisterPegawai().setVisible(true);
-            dispose();
+        // Tombol Lupa Password
+        JButton btnLupaPassword = new JButton("Lupa Password?");
+        btnLupaPassword.setBounds(150, 160, 180, 25);
+        btnLupaPassword.setFont(boldFont);
+        btnLupaPassword.setContentAreaFilled(false);
+        btnLupaPassword.setBorderPainted(false);
+        btnLupaPassword.setForeground(Color.BLUE);
+        btnLupaPassword.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btnLupaPassword.addActionListener(e -> {
+            new frmLupaPassword().setVisible(true);
         });
-        add(btnRegister);
+        add(btnLupaPassword);
+
 
         // Add window listener to set focus to username field
         addWindowListener(new WindowAdapter() {
