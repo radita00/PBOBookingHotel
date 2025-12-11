@@ -22,7 +22,7 @@ public class Customer {
         this.alamat = alamat;
     }
 
-    // --- Getter & Setter (Dipertahankan) ---
+    // --- Getter & Setter ---
     public int getId_customer() { return id_customer; }
     public void setId_customer(int id_customer) { this.id_customer = id_customer; }
     public String getNama() { return nama; }
@@ -46,7 +46,7 @@ public class Customer {
         return c;
     }
     
-    // 🆕 Metode untuk mencari Customer berdasarkan Nomor Identitas
+    // Metode untuk mencari Customer berdasarkan Nomor Identitas
     public Customer getByNoIdentitas(String noIdentitas) {
         String query = "SELECT * FROM customer WHERE no_identitas = ?";
         
@@ -62,27 +62,45 @@ public class Customer {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null; // Mengembalikan null jika tidak ditemukan
+        return null;
+    }
+
+    // 🆕 METHOD BARU: Search berdasarkan Nama Customer
+    public ArrayList<Customer> searchCustomer(String keyword) {
+        ArrayList<Customer> listCustomer = new ArrayList<>();
+        // Menggunakan PreparedStatement untuk LIKE walaupun bukan yang terbaik untuk performa, 
+        // tapi konsisten dengan style yang sudah ada.
+        String query = "SELECT * FROM customer WHERE nama LIKE ?";
+
+        try (Connection conn = DBHelper.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            
+            stmt.setString(1, "%" + keyword + "%"); // Set parameter LIKE
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    listCustomer.add(mapResultSetToCustomer(rs));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return listCustomer;
     }
 
     
-    // 🔄 PERBAIKAN LOGIKA SAVE: Menentukan apakah INSERT atau UPDATE berdasarkan ID dan No. Identitas
+    // PERBAIKAN LOGIKA SAVE
     public void save() {
-        // --- Langkah 1: Pengecekan Eksistensi ---
         if (this.id_customer == 0) {
-            // Jika ID 0 (objek baru), cek apakah No. Identitas sudah ada di DB
             Customer existingCustomer = getByNoIdentitas(this.no_identitas);
             
             if (existingCustomer != null) {
-                // Jika customer DITEMUKAN: Ganti mode ke UPDATE dengan mengambil ID yang sudah ada
                 this.id_customer = existingCustomer.getId_customer();
             }
         }
         
-        // --- Langkah 2: Eksekusi Query ---
-        
         if (this.id_customer == 0) {
-            // Mode: INSERT (Setelah yakin tidak ada di DB)
+            // Mode: INSERT
             String sql = "INSERT INTO customer (nama, no_identitas, no_hp, alamat) VALUES (?, ?, ?, ?)";
             
             try (Connection conn = DBHelper.getConnection();
@@ -101,7 +119,6 @@ public class Customer {
                     }
                 }
             } catch (SQLException e) {
-                // RuntimeException akan dilempar ke UI untuk ditampilkan
                 throw new RuntimeException("Gagal menyimpan customer baru: " + e.getMessage(), e);
             }
             
@@ -127,7 +144,6 @@ public class Customer {
     }
 
     // --- Metode lainnya (tetap) ---
-
     public ArrayList<Customer> getAll() {
         ArrayList<Customer> listCustomer = new ArrayList<>();
         String query = "SELECT * FROM customer";

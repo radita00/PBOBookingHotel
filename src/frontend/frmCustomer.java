@@ -2,13 +2,17 @@ package frontend;
 import backend.Customer;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 
 public class frmCustomer extends JFrame {
     private JTextField txtNama, txtIdentitas, txtHP, txtAlamat;
     private JTable tblCustomer;
     private JButton btnSimpan, btnHapus, btnClear;
-    private int selectedCustomerId = 0; // Field untuk ID yang dipilih/diedit
+    private JTextField txtCariCustomer; // 🆕 Field baru
+    private int selectedCustomerId = 0;
 
     public frmCustomer() {
         setTitle("Form Master Customer");
@@ -16,7 +20,10 @@ public class frmCustomer extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new java.awt.BorderLayout(10, 10));
         
-        // --- Panel Input ---
+        // --- Panel Input dan Search (NORTH) ---
+        JPanel panelNorth = new JPanel(new BorderLayout(0, 10)); // Container utama NORTH
+        
+        // 1. Panel Input Data
         JPanel panelInput = new JPanel(new java.awt.GridLayout(5, 2, 5, 5));
         panelInput.setBorder(BorderFactory.createTitledBorder("Input Data Customer"));
         
@@ -45,7 +52,18 @@ public class frmCustomer extends JFrame {
         panelButton.add(btnClear);
         panelInput.add(panelButton);
         
-        add(panelInput, java.awt.BorderLayout.NORTH);
+        panelNorth.add(panelInput, BorderLayout.NORTH);
+        
+        // 2. Panel Search
+        JPanel panelSearch = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        txtCariCustomer = new JTextField(20);
+        JLabel lblCari = new JLabel("Cari Nama Customer:");
+        panelSearch.add(lblCari);
+        panelSearch.add(txtCariCustomer);
+        
+        panelNorth.add(panelSearch, BorderLayout.SOUTH);
+        
+        add(panelNorth, java.awt.BorderLayout.NORTH);
         
         // --- Tabel ---
         tblCustomer = new JTable();
@@ -53,8 +71,16 @@ public class frmCustomer extends JFrame {
         add(scrollPane, java.awt.BorderLayout.CENTER);
         
         // --- LOGIKA ---
-        tampilkanData();
+        tampilkanData(""); // Panggil dengan keyword kosong di awal
         
+        // 🆕 Listener Pencarian
+        txtCariCustomer.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                tampilkanData(txtCariCustomer.getText());
+            }
+        });
+
         btnSimpan.addActionListener(e -> simpanData());
         btnClear.addActionListener(e -> clearForm());
         btnHapus.addActionListener(e -> hapusData());
@@ -64,8 +90,8 @@ public class frmCustomer extends JFrame {
             public void mouseClicked(java.awt.event.MouseEvent e) {
                 int row = tblCustomer.getSelectedRow();
                 if (row >= 0) {
-                    // Simpan ID customer yang dipilih (untuk Update/Delete)
                     selectedCustomerId = Integer.parseInt(tblCustomer.getValueAt(row, 0).toString());
+                    btnSimpan.setText("Update"); // Tambahan: Agar jelas mode edit
                     
                     txtNama.setText(tblCustomer.getValueAt(row, 1).toString());
                     txtIdentitas.setText(tblCustomer.getValueAt(row, 2).toString());
@@ -78,11 +104,19 @@ public class frmCustomer extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    private void tampilkanData() {
+    // 🔄 Modifikasi method untuk menerima keyword
+    private void tampilkanData(String keyword) {
         String[] kolom = {"ID", "Nama", "No. Identitas", "HP", "Alamat"};
         DefaultTableModel model = new DefaultTableModel(kolom, 0);
         
-        ArrayList<Customer> list = new Customer().getAll();
+        Customer customerHelper = new Customer();
+        ArrayList<Customer> list;
+        
+        if (keyword.isEmpty()) {
+            list = customerHelper.getAll();
+        } else {
+            list = customerHelper.searchCustomer(keyword);
+        }
         
         for (Customer c : list) {
             Object[] row = {
@@ -105,8 +139,6 @@ public class frmCustomer extends JFrame {
             }
             
             Customer c = new Customer();
-            
-            // Set ID customer yang sedang diedit (0 jika baru, ID jika update)
             c.setId_customer(selectedCustomerId); 
             
             c.setNama(txtNama.getText());
@@ -114,9 +146,9 @@ public class frmCustomer extends JFrame {
             c.setNo_hp(txtHP.getText());
             c.setAlamat(txtAlamat.getText());
             
-            c.save(); // Logika save() di model akan menentukan INSERT atau UPDATE
+            c.save();
             JOptionPane.showMessageDialog(this, "Data Customer berhasil disimpan.");
-            tampilkanData();
+            tampilkanData("");
             clearForm();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -128,7 +160,10 @@ public class frmCustomer extends JFrame {
         txtIdentitas.setText("");
         txtHP.setText("");
         txtAlamat.setText("");
-        selectedCustomerId = 0; // Reset ID saat form dibersihkan
+        selectedCustomerId = 0; 
+        btnSimpan.setText("Simpan"); // Reset button text
+        txtCariCustomer.setText(""); // Bersihkan field search
+        tampilkanData("");
     }
 
     private void hapusData() {
@@ -143,12 +178,11 @@ public class frmCustomer extends JFrame {
         
         if (confirm == JOptionPane.YES_OPTION) {
             Customer c = new Customer();
-            c.setId_customer(id); // Set ID sebelum menghapus
+            c.setId_customer(id);
             
-            // Panggil method delete() tanpa argumen
             if (c.delete()) {
                 JOptionPane.showMessageDialog(this, "Data berhasil dihapus.");
-                tampilkanData();
+                tampilkanData("");
                 clearForm();
             } else {
                 JOptionPane.showMessageDialog(this, "Gagal menghapus data. (Mungkin terikat dengan booking lain)", "Error", JOptionPane.ERROR_MESSAGE);
