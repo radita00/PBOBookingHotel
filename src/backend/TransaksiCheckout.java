@@ -9,6 +9,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import javax.swing.JOptionPane;
 import java.text.SimpleDateFormat; 
+import backend.Users;
 
 public class TransaksiCheckout {
     private int id_transaksi;
@@ -18,12 +19,13 @@ public class TransaksiCheckout {
     private double total_bayar;
     private String metode;
     private String kode_transaksi;
-    private int id_user; // FIELD BARU: ID Pegawai yang melakukan checkout
+    private int id_user; // ID Pegawai yang melakukan checkout
+    private String username;
 
     // --- Konstruktor, Getter, dan Setter ---
     
     public TransaksiCheckout() {
-        // Constructor kosong, set booking nanti melalui setter
+    
     }
     
     public Booking getBooking() { return booking; }
@@ -38,15 +40,15 @@ public class TransaksiCheckout {
     public double getTotal_bayar() { return total_bayar; }
     
     public String getKode_transaksi() { return kode_transaksi; }
+    // BARU: Setter ini akan dipanggil dari frmCheckout dengan input manual/auto
     public void setKode_transaksi(String kode_transaksi) { this.kode_transaksi = kode_transaksi; }
-
-    // GETTER DAN SETTER UNTUK ID USER
+    public String getUsername() { return username; }
     public int getId_user() { return id_user; }
-    // 🚨 KUNCI #1: Method ini dipanggil oleh frmCheckout
     public void setId_user(int id_user) { this.id_user = id_user; }
 
+
     /**
-     * Metode untuk menghasilkan kode transaksi acak (untuk non-tunai)
+     * Metode untuk menghasilkan kode transaksi acak (dijalankan di frontend)
      */
     public static String generateRandomCode() {
         // Format: TXN-YYYYMMDD-5digitRandom
@@ -66,12 +68,12 @@ public class TransaksiCheckout {
         LocalDate checkin = tglCheckin.toLocalDate();
         LocalDate checkout = tglCheckoutAktual.toLocalDate();
         long days = ChronoUnit.DAYS.between(checkin, checkout);
-        // Pastikan minimal 1 hari (sesuai logika di frontend/calculatePayment)
+        // Pastikan minimal 1 hari
         return (int) Math.max(1, days); 
     }
     
     /**
-     * Validasi tanggal checkout terhadap tanggal booking
+     * Validasi data sebelum disimpan
      */
     private void validateCheckoutDate() {
         if (this.booking == null) {
@@ -80,11 +82,9 @@ public class TransaksiCheckout {
         if (this.tanggal_checkout_aktual == null) {
             throw new IllegalArgumentException("Tanggal checkout harus diisi");
         }
-        // 🚨 KUNCI #2: Validasi ID User (Pegawai)
         if (this.id_user <= 0) {
             throw new IllegalArgumentException("ID User (Pegawai) harus diisi."); 
         }
-        // Validasi tanggal checkout tidak boleh sebelum tanggal check-in
         if (this.tanggal_checkout_aktual.before(this.booking.getTanggal_checkin())) {
             throw new IllegalArgumentException("Tanggal checkout tidak boleh sebelum tanggal check-in (" 
                 + this.booking.getTanggal_checkin() + ")");
@@ -94,6 +94,14 @@ public class TransaksiCheckout {
         maxDate.add(Calendar.YEAR, 1);
         if (this.tanggal_checkout_aktual.after(new Date(maxDate.getTimeInMillis()))) {
             throw new IllegalArgumentException("Tanggal checkout tidak boleh lebih dari 1 tahun ke depan");
+        }
+        
+        // 🚨 VALIDASI: Validasi Kode Transaksi untuk Non-Tunai (Tidak ada perubahan)
+        if (this.metode != null && !this.metode.equalsIgnoreCase("Tunai")) {
+             // Nilai kode_transaksi sekarang berasal dari setter (input user/auto-generated di frontend)
+           if (this.kode_transaksi == null || this.kode_transaksi.trim().isEmpty()) {
+                throw new IllegalArgumentException("Kode transaksi wajib diisi untuk metode Non-Tunai.");
+            }
         }
     }
     
@@ -117,12 +125,12 @@ public class TransaksiCheckout {
             validateCheckoutDate();
             calculatePayment();
             
-            // 2. Tentukan Kode Transaksi berdasarkan Metode Pembayaran
-            if (this.metode != null && !this.metode.equalsIgnoreCase("Tunai")) {
-                this.kode_transaksi = generateRandomCode();
-            } else {
-                this.kode_transaksi = null; // Set null secara eksplisit untuk Tunai
+            this.username = Users.getUsernameById(this.id_user);
+            if (this.username == null || this.username.contains("NOT_FOUND")) {
+                 // Throw exception jika username tidak ditemukan, ini adalah data yang hilang
+                throw new IllegalArgumentException("Username Pegawai tidak ditemukan untuk ID: " + this.id_user);
             }
+            // 🚨 HILANGKAN LANGKAH 2: Kode Transaksi sudah diset dari frontend
 
             // 3. Dapatkan koneksi dan mulai transaksi
             conn = DBHelper.getConnection();
@@ -134,10 +142,9 @@ public class TransaksiCheckout {
 
             try {
                 // 5. Simpan transaksi checkout
-                // 🚨 KUNCI #3: SQL Query sudah menyertakan kolom id_user
                 String sql = "INSERT INTO transaksi_checkout (tanggal_checkout, id_customer, tanggal_checkin, "
                             + "tanggal_transaksi, lama_inap, total_bayar, metode, kode_transaksi, id_booking, id_user) "
-                            + "VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)"; // Total 9 Placeholder + NOW()
+                            + "VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)"; 
 
                 // Array Parameters
                 Object[] params = new Object[]{
@@ -147,15 +154,16 @@ public class TransaksiCheckout {
                     this.lama_inap,
                     this.total_bayar,
                     this.metode,
+                    // Menggunakan kode_transaksi yang telah diset (baik null, manual, atau auto-generated)
                     this.kode_transaksi, 
                     this.booking.getId_booking(),
-                    this.id_user // 🚨 KUNCI #4: Menyertakan nilai id_user
+                    this.id_user,
                 };
 
                 this.id_transaksi = DBHelper.insertWithParamsGetId(
                     conn,
                     sql,
-                    params // Gunakan array params yang sudah diperbarui
+                    params 
                 );
                 
                 if (this.id_transaksi <= 0) {
@@ -194,8 +202,8 @@ public class TransaksiCheckout {
                     null,
                     "Checkout berhasil!\nID Transaksi: " + this.id_transaksi + 
                     "\nMetode: " + this.metode + 
-                    (this.kode_transaksi != null ? "\nKode Transaksi: " + this.kode_transaksi : "") +
-                    "\nDilayani oleh ID User: " + this.id_user + // TAMPILKAN ID USER
+                    (this.kode_transaksi != null && !this.kode_transaksi.isEmpty() ? "\nKode Transaksi: " + this.kode_transaksi : "") +
+                    "\nDilayani oleh ID User: " + this.id_user + " - " + this.getUsername() +
                     "\nKamar: " + this.booking.getKamar().getNomor_kamar() +
                     "\nLama Inap: " + this.lama_inap + " hari" + 
                     "\nTotal Bayar: Rp " + String.format("%,.2f", this.total_bayar),
