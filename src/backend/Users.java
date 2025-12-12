@@ -10,11 +10,11 @@ public class Users {
     private int id_user;
     private String username;
     private String password;
-    private String role; // ini seperti 'admin', 'pegawai'
+    private String role;
 
     public Users() {}
     
-    // --- Getter dan Setter ---
+    //Getter dan Setter
     public int getId_user() { return id_user; }
     public void setId_user(int id_user) { this.id_user = id_user; }
     public String getUsername() { return username; }
@@ -24,7 +24,7 @@ public class Users {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
-    // --- 1. Login ---
+    //1. Login
     public Users login(String username, String password) {
         Users user = null;
         String query = "SELECT * FROM users WHERE username = '" + username 
@@ -44,7 +44,7 @@ public class Users {
         return user;
     }
     
-    // --- 2. Registrasi Pegawai ---
+    //2. Registrasi Pegawai
     public boolean registerPegawai(String username, String password) {
         String cekQuery = "SELECT * FROM users WHERE username = '" + username + "'";
         try (ResultSet rs = DBHelper.selectQuery(cekQuery)) {
@@ -65,7 +65,7 @@ public class Users {
         }
     }
 
-    // --- 3. Mengambil Semua Data Users (Untuk Admin) ---
+    //3. Mengambil Semua Data Users (Untuk Admin)
     public ArrayList<Users> getAllUsers() {
         ArrayList<Users> listUsers = new ArrayList<>();
         String sql = "SELECT id_user, username, role FROM users";
@@ -85,7 +85,7 @@ public class Users {
         return listUsers;
     }
     
-    // 🆕 METHOD BARU: Search berdasarkan Username
+    //Search berdasarkan Username
     public ArrayList<Users> searchUsers(String keyword) {
         ArrayList<Users> listUsers = new ArrayList<>();
         // Pencarian berdasarkan username
@@ -105,19 +105,19 @@ public class Users {
         return listUsers;
     }
 
-    // --- 4. Update Data User (Admin) ---
+    //4. Update Data User (Admin)
     public boolean updateUser(int id, String username, String role) {
         String query = "UPDATE users SET username = '" + username + "', role = '" + role + "' WHERE id_user = " + id;
         return DBHelper.executeQuery(query); 
     }
     
-    // --- 5. Hapus User (Admin) ---
+    //5. Hapus User (Admin)
     public boolean deleteUser(int id) {
         String query = "DELETE FROM users WHERE id_user = " + id;
         return DBHelper.executeQuery(query);
     }
     
-    // --- 6. Reset Password (Untuk frmLupaPassword) ---
+    //6. Reset Password (Untuk frmLupaPassword)
     public boolean resetPassword(String username, String newPassword) {
         String cekQuery = "SELECT id_user FROM users WHERE username = '" + username + "'";
         int id_user = -1;

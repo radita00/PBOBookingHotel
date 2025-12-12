@@ -25,7 +25,7 @@ public class frmLupaPassword extends JFrame {
         Font boldFont = new Font(Font.SANS_SERIF, Font.BOLD, 12);
 
         //1. Username (Verifikasi)
-        JLabel lblUsername = new JLabel("Username (Pegawai):");
+        JLabel lblUsername = new JLabel("Username:");
         lblUsername.setFont(boldFont);
         gbc.gridx = 0;
         gbc.gridy = 0;
