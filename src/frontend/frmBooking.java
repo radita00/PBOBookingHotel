@@ -3,7 +3,7 @@ package frontend;
 import backend.Booking;
 import backend.Customer;
 import backend.Kamar;
-import backend.Users; // Import Users
+import backend.Users; 
 import util.DatePicker;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -18,24 +18,26 @@ public class frmBooking extends JFrame {
     private JComboBox<Customer> cmbCustomer;
     private DatePicker dateCheckIn, dateCheckOut;
     private JButton btnTampilkanKamar, btnBooking;
-    private JTable tblKamar;
-    private DefaultTableModel modelTabel;
-    private JTextField txtNomorKamar;
-    private JScrollPane scrollPane;
-    private ArrayList<Kamar> daftarKamarTersedia;
     
-    private Users userLogin; // BARU: Field untuk menyimpan user yang sedang login
+    // Tiga Tabel
+    private JTable tblKamarTersedia, tblKamarTerisi, tblKamarPerawatan;
+    private DefaultTableModel modelTersedia, modelTerisi, modelPerawatan;
+    
+    private JTextField txtNomorKamar;
+    private ArrayList<Kamar> daftarKamarTersedia;
+    private Users userLogin; 
+    
+    private static final int MAX_TABLE_HEIGHT = 150; 
 
-    // MODIFIKASI KONSTRUKTOR untuk menerima Users
     public frmBooking(Users userLogin) {
-        this.userLogin = userLogin; // Simpan user yang sedang login
+        this.userLogin = userLogin; 
         
-        setTitle("Form Booking / Check-In (Operator: " + userLogin.getUsername() + ")"); // Opsional: Tampilkan nama user
-        setSize(900, 650);
+        setTitle("Form Booking / Check-In (ID Pegawai: " + userLogin.getId_user() + " - " + userLogin.getUsername() + ")");
+        setSize(1000, 800); 
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
         
-        // --- Panel Input ---
+        // --- Panel Input (NORTH) ---
         JPanel panelInput = new JPanel(new GridLayout(6, 2, 5, 5));
         panelInput.setBorder(BorderFactory.createTitledBorder("Input Data Booking"));
         
@@ -59,7 +61,6 @@ public class frmBooking extends JFrame {
         txtNomorKamar = new JTextField();
         txtNomorKamar.setEditable(false);
         txtNomorKamar.setBackground(Color.LIGHT_GRAY);
-        txtNomorKamar.setToolTipText("Nomor kamar yang dipilih dari tabel");
         panelInput.add(txtNomorKamar);
         
         JPanel panelButtonBooking = new JPanel();
@@ -70,51 +71,50 @@ public class frmBooking extends JFrame {
         
         add(panelInput, BorderLayout.NORTH);
         
-        // --- Panel Tabel ---
-        JPanel panelTabel = new JPanel(new BorderLayout());
-        panelTabel.setBorder(BorderFactory.createTitledBorder("Kamar Tersedia"));
+        // --- Panel Tabel (CENTER) ---
+        JPanel panelTabelUtama = new JPanel();
+        panelTabelUtama.setLayout(new BoxLayout(panelTabelUtama, BoxLayout.Y_AXIS));
+        panelTabelUtama.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        String[] kolom = {"No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
-        modelTabel = new DefaultTableModel(kolom, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
+        // Inisialisasi Tiga Tabel dan Model secara eksplisit:
+        
+        // 1. Kamar Tersedia (Selectable)
+        Object[] kolom = {"No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
+        modelTersedia = new DefaultTableModel(kolom, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
         };
+        tblKamarTersedia = new JTable(modelTersedia);
+        initTableListeners(tblKamarTersedia); // Tambahkan listener klik/double-klik
+        panelTabelUtama.add(createTablePanel("Kamar Tersedia", tblKamarTersedia, MAX_TABLE_HEIGHT, true));
+        panelTabelUtama.add(Box.createRigidArea(new Dimension(0, 15)));
         
-        tblKamar = new JTable(modelTabel);
-        tblKamar.getTableHeader().setReorderingAllowed(false);
-        tblKamar.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        // 2. Kamar Terisi (Non-Selectable)
+        modelTerisi = new DefaultTableModel(kolom, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tblKamarTerisi = new JTable(modelTerisi);
+        panelTabelUtama.add(createTablePanel("Kamar Terisi (Sedang Check-in)", tblKamarTerisi, MAX_TABLE_HEIGHT, false));
+        panelTabelUtama.add(Box.createRigidArea(new Dimension(0, 15)));
         
-        // Event saat single click untuk memilih, double click untuk langsung booking
-        tblKamar.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                if (evt.getClickCount() == 1) {
-                    pilihKamarDariTabel();
-                } else if (evt.getClickCount() == 2) {
-                    buatBooking();
-                }
-            }
-        });
+        // 3. Kamar Perawatan (Non-Selectable)
+        modelPerawatan = new DefaultTableModel(kolom, 0) {
+            @Override public boolean isCellEditable(int row, int column) { return false; }
+        };
+        tblKamarPerawatan = new JTable(modelPerawatan);
+        panelTabelUtama.add(createTablePanel("Kamar Perawatan", tblKamarPerawatan, MAX_TABLE_HEIGHT / 2, false));
         
-        scrollPane = new JScrollPane(tblKamar);
-        panelTabel.add(scrollPane, BorderLayout.CENTER);
-        
-        JLabel lblInfo = new JLabel("Klik untuk memilih kamar | Double-click untuk langsung booking");
-        lblInfo.setFont(new Font("Arial", Font.ITALIC, 11));
-        lblInfo.setHorizontalAlignment(SwingConstants.CENTER);
-        panelTabel.add(lblInfo, BorderLayout.SOUTH);
-        
-        add(panelTabel, BorderLayout.CENTER);
+        add(panelTabelUtama, BorderLayout.CENTER);
         
         // --- LOGIKA ---
         daftarKamarTersedia = new ArrayList<>();
         isiCustomer();
+        isiSemuaTabelStatus(); // Isi tabel status saat start
         
         // Event listener untuk otomatis menampilkan kamar setelah memilih check-out
         dateCheckOut.addPropertyChangeListener("date", new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
+                // Hanya tampilkan jika check-in dan check-out sudah diisi
                 if (dateCheckIn.getDate() != null && dateCheckOut.getDate() != null) {
                     tampilkanKamarTersedia();
                 }
@@ -126,12 +126,53 @@ public class frmBooking extends JFrame {
         
         setLocationRelativeTo(null);
     }
-
-    // KONSTRUKTOR DEFAULT (Dihapus atau dipertahankan jika dibutuhkan, tetapi tidak disarankan)
-    // public frmBooking() {
-    //    this(new Users().getById(1)); // Contoh: Jika Anda ingin menggunakan ID 1 sebagai default jika tidak ada user login
-    // }
-
+    
+    /**
+     * Metode pembantu untuk mengatur properti dasar JTable dan menambahkan listeners.
+     * Dipanggil di konstruktor.
+     */
+    private void initTableListeners(JTable table) {
+        table.getTableHeader().setReorderingAllowed(false);
+        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        // Event listener HANYA untuk tabel Kamar Tersedia
+        if (table == tblKamarTersedia) {
+            table.addMouseListener(new java.awt.event.MouseAdapter() {
+                public void mouseClicked(java.awt.event.MouseEvent evt) {
+                    if (evt.getClickCount() == 1) {
+                        pilihKamarDariTabel();
+                    } else if (evt.getClickCount() == 2) {
+                        buatBooking();
+                    }
+                }
+            });
+        }
+    }
+    
+    /**
+     * Metode pembantu untuk membuat JScrollPane dengan JTable dan tinggi terbatas.
+     */
+    private JScrollPane createTablePanel(String title, JTable table, int maxHeight, boolean showInfo) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createTitledBorder(title));
+        
+        JScrollPane scroll = new JScrollPane(table);
+        // Batasi tinggi scroll pane agar tidak memakan terlalu banyak ruang
+        scroll.setPreferredSize(new Dimension(scroll.getPreferredSize().width, maxHeight));
+        scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, maxHeight));
+        
+        panel.add(scroll, BorderLayout.CENTER);
+        
+        if (showInfo) {
+            JLabel lblInfo = new JLabel("Klik untuk memilih kamar | Double-click untuk Booking");
+            lblInfo.setFont(new Font("Arial", Font.ITALIC, 11));
+            lblInfo.setHorizontalAlignment(SwingConstants.CENTER);
+            panel.add(lblInfo, BorderLayout.SOUTH);
+        }
+        
+        return scroll;
+    }
+    
     private void isiCustomer() {
         ArrayList<Customer> list = new Customer().getAll();
         cmbCustomer.removeAllItems();
@@ -142,20 +183,42 @@ public class frmBooking extends JFrame {
             JOptionPane.showMessageDialog(this, "Tidak ada customer. Tambahkan customer terlebih dahulu!", "Info", JOptionPane.INFORMATION_MESSAGE);
         }
     }
+    
+    // --- Metode Baru: Isi semua tabel status (Terisi & Perawatan) ---
+    private void isiSemuaTabelStatus() {
+        // Isi Kamar Terisi
+        ArrayList<Kamar> listTerisi = new Kamar().getOccupied();
+        modelTerisi.setRowCount(0);
+        for (Kamar k : listTerisi) {
+            modelTerisi.addRow(new Object[]{
+                k.getNomor_kamar(), k.getTipe(), String.format("Rp %,.0f", k.getHarga()), k.getStatus()
+            });
+        }
+        
+        // Isi Kamar Perawatan
+        ArrayList<Kamar> listPerawatan = new Kamar().getMaintenance();
+        modelPerawatan.setRowCount(0);
+        for (Kamar k : listPerawatan) {
+            modelPerawatan.addRow(new Object[]{
+                k.getNomor_kamar(), k.getTipe(), String.format("Rp %,.0f", k.getHarga()), k.getStatus()
+            });
+        }
+    }
 
     private void tampilkanKamarTersedia() {
-        // ... (Logika tampilkanKamarTersedia tetap sama)
         try {
             if (dateCheckIn.getDate() == null || dateCheckOut.getDate() == null) {
                 JOptionPane.showMessageDialog(this, "Tanggal check-in dan check-out harus diisi!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
+            // Validasi tanggal
             if (!dateCheckOut.getDate().after(dateCheckIn.getDate())) {
                 JOptionPane.showMessageDialog(this, "Tanggal check-out harus setelah tanggal check-in!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
+            // Validasi tanggal tidak boleh masa lalu (kecuali hari ini)
             Calendar today = Calendar.getInstance();
             today.set(Calendar.HOUR_OF_DAY, 0);
             today.set(Calendar.MINUTE, 0);
@@ -170,9 +233,10 @@ public class frmBooking extends JFrame {
             Date tglIn = new Date(dateCheckIn.getDate().getTime());
             Date tglOut = new Date(dateCheckOut.getDate().getTime());
 
+            // Panggil query ketersediaan dari kelas Kamar
             daftarKamarTersedia = new Kamar().getKamarTersedia(tglIn, tglOut);
             
-            modelTabel.setRowCount(0);
+            modelTersedia.setRowCount(0);
             
             if (daftarKamarTersedia.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Tidak ada kamar tersedia pada tanggal tersebut.", "Info", JOptionPane.INFORMATION_MESSAGE);
@@ -184,10 +248,14 @@ public class frmBooking extends JFrame {
                         String.format("Rp %,.0f", k.getHarga()),
                         k.getStatus()
                     };
-                    modelTabel.addRow(row);
+                    modelTersedia.addRow(row);
                 }
                 JOptionPane.showMessageDialog(this, "Ditemukan " + daftarKamarTersedia.size() + " kamar tersedia.", "Info", JOptionPane.INFORMATION_MESSAGE);
             }
+            
+            // Bersihkan teks kamar yang dipilih
+            txtNomorKamar.setText("");
+            
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
@@ -195,9 +263,9 @@ public class frmBooking extends JFrame {
     }
 
     private void pilihKamarDariTabel() {
-        int selectedRow = tblKamar.getSelectedRow();
+        int selectedRow = tblKamarTersedia.getSelectedRow();
         if (selectedRow != -1) {
-            String nomorKamar = modelTabel.getValueAt(selectedRow, 0).toString();
+            String nomorKamar = modelTersedia.getValueAt(selectedRow, 0).toString();
             txtNomorKamar.setText(nomorKamar);
         }
     }
@@ -209,9 +277,9 @@ public class frmBooking extends JFrame {
                 return;
             }
             
-            int selectedRow = tblKamar.getSelectedRow();
+            int selectedRow = tblKamarTersedia.getSelectedRow();
             if (selectedRow == -1) {
-                JOptionPane.showMessageDialog(this, "Pilih kamar dari tabel terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Pilih kamar dari tabel Kamar Tersedia terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
@@ -227,26 +295,26 @@ public class frmBooking extends JFrame {
             Date tglOut = new Date(dateCheckOut.getDate().getTime());
             double hargaAwal = selectedKamar.getHarga();
 
-            // MODIFIKASI: Panggil konstruktor Booking yang baru (termasuk userLogin)
+            // Panggil konstruktor Booking yang menyertakan userLogin
+            // Metode save ini akan membuat record baru di tabel booking, dan (ASUMSI) 
+            // memperbarui status kamar menjadi 'terisi' di tabel kamar.
             Booking b = new Booking(selectedCustomer, selectedKamar, userLogin, tglIn, tglOut, hargaAwal);
-b.save();
+            b.save(); 
 
             JOptionPane.showMessageDialog(this, 
                 "Booking berhasil dibuat!\n" +
-                "Operator: " + userLogin.getUsername() + "\n" + // Tampilkan operator yang membuat booking
                 "ID Booking: " + b.getId_booking() + "\n" +
-                "Kamar: " + selectedKamar.getNomor_kamar() + "\n" +
-                "Tipe: " + selectedKamar.getTipe() + "\n" +
-                "Harga: Rp " + String.format("%,.0f", hargaAwal), 
+                "Kamar: " + selectedKamar.getNomor_kamar() + " (" + selectedKamar.getTipe() + ")", 
                 "Sukses", JOptionPane.INFORMATION_MESSAGE);
             
-            // Reset form
+            // Reset form dan update semua tabel
             dateCheckIn.setDate(null);
             dateCheckOut.setDate(null);
             txtNomorKamar.setText("");
-            modelTabel.setRowCount(0);
+            modelTersedia.setRowCount(0);
             daftarKamarTersedia.clear();
-            
+            isiSemuaTabelStatus(); // Update status Terisi setelah booking
+
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Gagal membuat booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();

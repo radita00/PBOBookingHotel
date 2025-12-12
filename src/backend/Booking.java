@@ -5,15 +5,16 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.Objects;
 
+// Asumsi kelas Customer dan Users sudah ada dan memiliki method getById(int id)
 public class Booking {
     private int id_booking;
     private Customer customer;
     private Kamar kamar;
-    private Users user;
+    private Users user; 
     private Date tanggal_checkin;
     private Date tanggal_checkout;
     private double total_harga;
-    private String status;
+    private String status; 
 
     public Booking() {
     }
@@ -28,13 +29,12 @@ public class Booking {
         this.status = "booked";
     }
 
-    // Keep the old constructor for backward compatibility
     public Booking(Customer customer, Kamar kamar, Date tgl_checkin, Date tgl_checkout, double total_harga) {
-        this(customer, kamar, null, tgl_checkin, tgl_checkout, total_harga);
+        // Warning: Jika User wajib, constructor ini akan error saat validateBooking()
+        this(customer, kamar, new Users(), tgl_checkin, tgl_checkout, total_harga); 
     }
 
-    // --- GETTERS & SETTERS (Dipertahankan) ---
-    // (Kode getter dan setter Anda yang sudah ada di sini...)
+    // --- GETTERS & SETTERS ---
     public int getId_booking() { return id_booking; }
     public void setId_booking(int id_booking) { 
         if (id_booking < 0) { throw new IllegalArgumentException("ID booking tidak valid"); }
@@ -52,7 +52,8 @@ public class Booking {
         validateDates(); 
     }
     public Users getUser() { return user; }
-    public void setUser(Users user) { this.user = Objects.requireNonNull(user, "User tidak boleh null"); }
+    // Diubah: User harus di-set
+    public void setUser(Users user) { this.user = user != null ? user : new Users(); } 
     
     public double getTotal_harga() { return total_harga; }
     public void setTotal_harga(double total_harga) { 
@@ -74,22 +75,25 @@ public class Booking {
         if (customer == null || kamar == null) {
             throw new IllegalStateException("Customer dan Kamar harus diisi");
         }
+        // Jika User wajib:
+        // if (user == null || user.getId_user() == 0) {
+        //     throw new IllegalStateException("User (Pegawai) harus diisi");
+        // }
     }
 
-    // --- PERBAIKAN METHOD SAVE DENGAN TRANSAKSI ---
+    // --- METHOD SAVE DENGAN TRANSAKSI DATABASE ---
     public void save() {
         validateBooking();
         
         if (this.id_booking == 0) {
-            // Proses Insert (Memerlukan Transaksi: Insert Booking + Update Kamar Status)
+            // INSERT (Transaksi: Insert Booking + Update Kamar Status)
             Connection conn = null;
             
             try {
-                // 1. Dapatkan koneksi & mulai transaksi
                 conn = DBHelper.getConnection();
                 conn.setAutoCommit(false); // Matikan autocommit
                 
-                // 2. INSERT data booking
+                // 2. INSERT data booking menggunakan PreparedStatement (lebih aman)
                 String sqlInsert = "INSERT INTO booking (id_customer, id_kamar, id_user, tanggal_checkin, tanggal_checkout, total_harga, status) " +
                                  "VALUES (?, ?, ?, ?, ?, ?, ?)";
                 
@@ -99,16 +103,15 @@ public class Booking {
                     
                     stmt.setInt(1, this.customer.getId_customer());
                     stmt.setInt(2, this.kamar.getId_kamar());
-                    stmt.setInt(3, this.user.getId_user());
+                    // Tambahkan pengecekan null/ID 0 untuk user
+                    stmt.setInt(3, this.user != null ? this.user.getId_user() : 0); 
                     stmt.setDate(4, new java.sql.Date(this.tanggal_checkin.getTime()));
                     stmt.setDate(5, new java.sql.Date(this.tanggal_checkout.getTime()));
                     stmt.setDouble(6, this.total_harga);
                     stmt.setString(7, this.status);
                     
-                    int affectedRows = stmt.executeUpdate();
-                    
-                    if (affectedRows == 0) {
-                        throw new SQLException("Gagal menyimpan booking, tidak ada baris yang terpengaruh.");
+                    if (stmt.executeUpdate() == 0) {
+                        throw new SQLException("Gagal menyimpan booking.");
                     }
                     
                     try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -122,25 +125,21 @@ public class Booking {
                 
                 this.id_booking = generatedId;
                 
-                // 3. UPDATE Status Kamar menjadi 'terisi' (Menggunakan koneksi transaksi)
-                // Catatan: Asumsi Kamar.save() tidak cocok karena akan membuat koneksi baru.
-                // Kita akan menggunakan DBHelper.executeQuery(conn, ...)
-                
+                // 3. UPDATE Status Kamar menjadi 'terisi' 
+                // Catatan: Jika kamar tidak kosong/perawatan, logic ini harus dicegah di layer service/frontend
                 String sqlUpdateKamar = "UPDATE kamar SET status = 'terisi' WHERE id_kamar = " + this.kamar.getId_kamar();
-                boolean kamarUpdated = DBHelper.executeQuery(conn, sqlUpdateKamar); 
                 
-                if (!kamarUpdated) {
+                // Asumsi DBHelper memiliki executeQuery(Connection conn, String sql)
+                if (!DBHelper.executeQuery(conn, sqlUpdateKamar)) {
                     throw new SQLException("Gagal mengupdate status kamar.");
                 }
 
                 // 4. COMMIT TRANSAKSI
                 conn.commit();
-                
-                // Set status objek lokal
                 this.kamar.setStatus("terisi"); 
                 
             } catch (SQLException e) {
-                // ROLLBACK jika ada kesalahan pada langkah 2 atau 3
+                // ROLLBACK jika ada kesalahan
                 if (conn != null) {
                     try {
                         conn.rollback();
@@ -162,17 +161,20 @@ public class Booking {
                 }
             }
         } else {
-            // Update existing booking (Tidak memerlukan Transaksi jika hanya update status)
-            String sql = "UPDATE booking SET status = ?, tanggal_checkin = ?, tanggal_checkout = ?, total_harga = ? WHERE id_booking = ?";
+            // Update existing booking (Update Status/Tanggal)
+            String sql = "UPDATE booking SET status = ?, id_customer = ?, id_kamar = ?, id_user = ?, tanggal_checkin = ?, tanggal_checkout = ?, total_harga = ? WHERE id_booking = ?";
             
             try (Connection conn = DBHelper.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 
                 stmt.setString(1, this.status);
-                stmt.setDate(2, new java.sql.Date(this.tanggal_checkin.getTime()));
-                stmt.setDate(3, new java.sql.Date(this.tanggal_checkout.getTime()));
-                stmt.setDouble(4, this.total_harga);
-                stmt.setInt(5, this.id_booking);
+                stmt.setInt(2, this.customer.getId_customer());
+                stmt.setInt(3, this.kamar.getId_kamar());
+                stmt.setInt(4, this.user != null ? this.user.getId_user() : 0); 
+                stmt.setDate(5, new java.sql.Date(this.tanggal_checkin.getTime()));
+                stmt.setDate(6, new java.sql.Date(this.tanggal_checkout.getTime()));
+                stmt.setDouble(7, this.total_harga);
+                stmt.setInt(8, this.id_booking);
 
                 stmt.executeUpdate();
                 
@@ -182,8 +184,7 @@ public class Booking {
         }
     }
 
-    // --- QUERY METHODS (Dipertahankan) ---
-    // (Kode getById, getBookingAktif, getAll, dan helper methods Anda di sini...)
+    // --- QUERY METHODS ---
 
     public static Booking getById(int id) {
         String sql = "SELECT * FROM booking WHERE id_booking = ?";
@@ -207,10 +208,6 @@ public class Booking {
         return getBookingsByStatus("booked");
     }
 
-    public static ArrayList<Booking> getAllBelumSelesai() {
-        return getBookingsByStatus("booked");
-    }
-
     public static ArrayList<Booking> getAll() {
         String sql = "SELECT * FROM booking";
         return getBookingsByQuery(sql);
@@ -227,7 +224,6 @@ public class Booking {
         try (Connection conn = DBHelper.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            // Set parameters if any
             for (int i = 0; i < params.length; i++) {
                 stmt.setObject(i + 1, params[i]);
             }
@@ -247,13 +243,28 @@ public class Booking {
         Booking booking = new Booking();
         booking.setId_booking(rs.getInt("id_booking"));
         
-        // Load related customer and room
-        // PENTING: Asumsikan Kamar dan Customer memiliki constructor default dan method getById(int id)
+        // Asumsi Kamar, Customer, dan Users memiliki implementasi getById(int id)
+        // Di sini kita asumsikan getById pada Users adalah statis.
         Customer customer = new Customer().getById(rs.getInt("id_customer"));
         Kamar kamar = new Kamar().getById(rs.getInt("id_kamar"));
         
+        // Pengecekan agar tidak error jika id_user null/0 di DB
+        int userId = rs.getInt("id_user");
+        Users user = null;
+        if (userId > 0) {
+            try {
+                // Menggunakan instance method getById
+                Users tempUser = new Users();
+                user = tempUser.getById(userId);
+            } catch (Exception e) {
+                System.err.println("Warning: Gagal memuat data user dengan ID: " + userId);
+                e.printStackTrace();
+            }
+        }
+        
         booking.setCustomer(customer);
         booking.setKamar(kamar);
+        booking.setUser(user); // Set user bisa null
         booking.setTanggal_checkin(rs.getDate("tanggal_checkin"));
         booking.setTanggal_checkout(rs.getDate("tanggal_checkout"));
         booking.setTotal_harga(rs.getDouble("total_harga"));
@@ -282,9 +293,11 @@ public class Booking {
 
     @Override
     public String toString() {
-        String customerName = (customer != null) ? customer.getNama() : "Unknown";
-        String kamarNum = (kamar != null) ? kamar.getNomor_kamar() : "Unknown";
-        return String.format("ID: %d - Kamar %s (%s) - %s - Rp %,.2f", 
-            id_booking, kamarNum, customerName, status, total_harga);
+        String customerName = (customer != null) ? customer.getNama() : "Unknown Customer";
+        String kamarNum = (kamar != null) ? kamar.getNomor_kamar() : "Unknown Kamar";
+        String userName = (user != null && user.getUsername() != null) ? user.getUsername() : "Unknown User";
+
+        return String.format("ID: %d - Kamar %s (Cust: %s, User: %s) - %s - Rp %,.2f", 
+            id_booking, kamarNum, customerName, userName, status, total_harga);
     }
 }
