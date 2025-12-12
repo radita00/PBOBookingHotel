@@ -1,8 +1,11 @@
 package frontend;
 
 import backend.Users; 
+import backend.DBHelper;
 import javax.swing.*;
 import java.awt.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 public class frmLupaPassword extends JFrame {
     private JTextField txtUsername;
@@ -114,13 +117,43 @@ public class frmLupaPassword extends JFrame {
         
         Users user = new Users();
         
-        // 3. Panggil method resetPassword (Perlu ditambahkan di class Users.java)
+        // 3. Cek apakah username ada
+        String cekQuery = "SELECT id_user FROM users WHERE username = '" + username + "'";
+        ResultSet rs = null;
+        try {
+            rs = DBHelper.selectQuery(cekQuery);
+            if (!rs.next()) {
+                // Username tidak ditemukan
+                JOptionPane.showMessageDialog(this, "Username Tidak Ditemukan, Masukkan Username yang valid", "Error", JOptionPane.ERROR_MESSAGE);
+                // Hapus semua input
+                txtUsername.setText("");
+                txtNewPassword.setText("");
+                txtConfirmPassword.setText("");
+                txtUsername.requestFocus(); // Fokuskan kembali ke field username
+                return;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Terjadi kesalahan saat memeriksa username", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        } finally {
+            // Pastikan ResultSet ditutup
+            if (rs != null) {
+                try {
+                    rs.getStatement().close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        
+        // 4. Jika username valid, lakukan reset password
         if (user.resetPassword(username, newPassword)) {
             JOptionPane.showMessageDialog(this, "Reset Password berhasil! Silakan login dengan password baru.", "Sukses", JOptionPane.INFORMATION_MESSAGE);
             new frmLogin().setVisible(true);
             dispose();
         } else {
-            JOptionPane.showMessageDialog(this, "Gagal mereset password. Pastikan Username benar dan koneksi database aktif.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Gagal mereset password. Silakan coba lagi.", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }   
 }
