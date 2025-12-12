@@ -10,8 +10,10 @@ public class frmMainMenu extends JFrame {
     
     private String username;
     private String role;
+    private int userId;
     
-    public frmMainMenu(String username, String role) {
+    public frmMainMenu(int userId, String username, String role) {
+        this.userId = userId;
         this.username = username;
         this.role = role;
         
@@ -94,7 +96,7 @@ public class frmMainMenu extends JFrame {
         btnKamar.addActionListener(e -> new frmKamar().setVisible(true)); 
         btnCustomer.addActionListener(e -> new frmCustomer().setVisible(true));
         btnBooking.addActionListener(e -> new frmBooking().setVisible(true));
-        btnCheckout.addActionListener(e -> new frmCheckout().setVisible(true));
+        btnCheckout.addActionListener(e -> new frmCheckout(userId).setVisible(true));
         
         btnLogout.addActionListener(e -> {
             int confirm = JOptionPane.showConfirmDialog(

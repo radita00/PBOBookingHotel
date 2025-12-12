@@ -89,7 +89,7 @@ public class frmLogin extends JFrame {
         if (user != null) {
             JOptionPane.showMessageDialog(null, "Login Berhasil! Selamat datang, " + user.getUsername(), "Sukses", JOptionPane.INFORMATION_MESSAGE);
             String roleUser = user.getRole();
-            new frmMainMenu(user.getUsername(), roleUser).setVisible(true);
+            new frmMainMenu(user.getId_user(), user.getUsername(), roleUser).setVisible(true);
             dispose(); 
         } else {
             JOptionPane.showMessageDialog(null, "Username atau Password salah.", "Gagal", JOptionPane.ERROR_MESSAGE);

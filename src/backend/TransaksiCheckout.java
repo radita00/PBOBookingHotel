@@ -3,10 +3,12 @@ package backend;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Connection;
+import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import javax.swing.JOptionPane;
+import java.text.SimpleDateFormat; 
 
 public class TransaksiCheckout {
     private int id_transaksi;
@@ -15,6 +17,8 @@ public class TransaksiCheckout {
     private int lama_inap;
     private double total_bayar;
     private String metode;
+    private String kode_transaksi;
+    private int id_user; // 🆕 FIELD BARU: ID Pegawai yang melakukan checkout
 
     // --- Konstruktor, Getter, dan Setter ---
     
@@ -32,15 +36,37 @@ public class TransaksiCheckout {
     public void setMetode(String metode) { this.metode = metode; }
     public int getLama_inap() { return lama_inap; }
     public double getTotal_bayar() { return total_bayar; }
-    // ... (Getter dan Setter lainnya)
+    
+    public String getKode_transaksi() { return kode_transaksi; }
+    public void setKode_transaksi(String kode_transaksi) { this.kode_transaksi = kode_transaksi; }
 
+    // 🆕 GETTER DAN SETTER UNTUK ID USER
+    public int getId_user() { return id_user; }
+    public void setId_user(int id_user) { this.id_user = id_user; }
+
+    /**
+     * Metode untuk menghasilkan kode transaksi acak (untuk non-tunai)
+     */
+    public static String generateRandomCode() {
+        // Format: TXN-YYYYMMDD-5digitRandom
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String datePart = sdf.format(new java.util.Date());
+        
+        // 5 digit angka acak
+        int randomPart = (int) (Math.random() * 90000) + 10000; 
+        
+        return "TXN-" + datePart + "-" + randomPart;
+    }
+    
     /**
      * Metode untuk menghitung lama inap dalam hari
      */
     public static int hitungLamaInap(Date tglCheckin, Date tglCheckoutAktual) {
         LocalDate checkin = tglCheckin.toLocalDate();
         LocalDate checkout = tglCheckoutAktual.toLocalDate();
-        return (int) ChronoUnit.DAYS.between(checkin, checkout);
+        long days = ChronoUnit.DAYS.between(checkin, checkout);
+        // Pastikan minimal 1 hari (sesuai logika di frontend/calculatePayment)
+        return (int) Math.max(1, days); 
     }
     
     /**
@@ -52,6 +78,9 @@ public class TransaksiCheckout {
         }
         if (this.tanggal_checkout_aktual == null) {
             throw new IllegalArgumentException("Tanggal checkout harus diisi");
+        }
+        if (this.id_user <= 0) {
+            throw new IllegalArgumentException("ID User (Pegawai) harus diisi."); // 🆕 VALIDASI ID USER
         }
         // Validasi tanggal checkout tidak boleh sebelum tanggal check-in
         if (this.tanggal_checkout_aktual.before(this.booking.getTanggal_checkin())) {
@@ -70,6 +99,7 @@ public class TransaksiCheckout {
      * Menghitung total bayar berdasarkan lama inap
      */
     private void calculatePayment() {
+        // Hitung lama inap dan total bayar
         this.lama_inap = hitungLamaInap(this.booking.getTanggal_checkin(), this.tanggal_checkout_aktual);
         this.total_bayar = this.booking.getKamar().getHarga() * this.lama_inap; 
     }
@@ -81,46 +111,50 @@ public class TransaksiCheckout {
         Connection conn = null; // Deklarasi objek koneksi
         
         try {
-            // Validate data & Calculate payment 
+            // 1. Validasi Data & Hitung Pembayaran
             validateCheckoutDate();
             calculatePayment();
+            
+            // 2. Tentukan Kode Transaksi berdasarkan Metode Pembayaran
+            if (this.metode != null && !this.metode.equalsIgnoreCase("Tunai")) {
+                this.kode_transaksi = generateRandomCode();
+            } else {
+                this.kode_transaksi = null; // Set null secara eksplisit untuk Tunai
+            }
 
-            // 1. Dapatkan koneksi dan mulai transaksi
+            // 3. Dapatkan koneksi dan mulai transaksi
             conn = DBHelper.getConnection();
             conn.setAutoCommit(false);
             
-            // 2. Dapatkan tanggal dalam format yang benar untuk database
+            // 4. Dapatkan tanggal dalam format yang benar untuk database
             java.sql.Date sqlCheckout = new java.sql.Date(this.tanggal_checkout_aktual.getTime());
             java.sql.Date sqlCheckin = new java.sql.Date(this.booking.getTanggal_checkin().getTime());
 
             try {
-                // 3. Simpan transaksi checkout
-                // REVISI PADA TransaksiCheckout.java -> method save()
+                // 5. Simpan transaksi checkout
+                // 🛠️ PERUBAHAN SQL: Tambahkan kolom id_user
+                String sql = "INSERT INTO transaksi_checkout (tanggal_checkout, id_customer, tanggal_checkin, "
+                            + "tanggal_transaksi, lama_inap, total_bayar, metode, kode_transaksi, id_booking, id_user) "
+                            + "VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)"; // Total 9 Placeholder + NOW()
 
-// 1. Ganti Query SQL (Pastikan id_booking ada)
-// REVISI PADA TransaksiCheckout.java -> method save()
+                // Array Parameters
+                Object[] params = new Object[]{
+                    sqlCheckout,
+                    this.booking.getCustomer().getId_customer(),
+                    sqlCheckin,
+                    this.lama_inap,
+                    this.total_bayar,
+                    this.metode,
+                    this.kode_transaksi, 
+                    this.booking.getId_booking(),
+                    this.id_user // 🆕 TAMBAHKAN ID USER
+                };
 
-// 1. Ganti Query SQL:
-// PASTIKAN kolom 'id_booking' dimasukkan dalam daftar kolom
-String sql = "INSERT INTO transaksi_checkout (tanggal_checkout, id_customer, tanggal_checkin, " +
-             "tanggal_transaksi, lama_inap, total_bayar, metode, id_booking) " + // <-- TAMBAH id_booking
-             "VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)"; // <-- PASTIKAN ADA 7 PLACEHOLDER + 1 (?)
-
-// 2. Ganti Array Parameters:
-// PASTIKAN this.booking.getId_booking() dimasukkan dalam daftar nilai
-this.id_transaksi = DBHelper.insertWithParamsGetId(
-    conn,
-    sql,
-    new Object[]{
-        sqlCheckout,
-        this.booking.getCustomer().getId_customer(),
-        sqlCheckin,
-        this.lama_inap,
-        this.total_bayar,
-        this.metode,
-        this.booking.getId_booking() // <-- TAMBAH NILAI ID BOOKING
-    }
-);
+                this.id_transaksi = DBHelper.insertWithParamsGetId(
+                    conn,
+                    sql,
+                    params // Gunakan array params yang sudah diperbarui
+                );
                 
                 if (this.id_transaksi <= 0) {
                     throw new SQLException("Gagal menyimpan transaksi checkout: Tidak ada ID yang dihasilkan");
@@ -128,7 +162,7 @@ this.id_transaksi = DBHelper.insertWithParamsGetId(
                 
                 System.out.println("Transaksi berhasil disimpan dengan ID: " + this.id_transaksi);
 
-                // 4. Update status booking menjadi 'selesai'
+                // 6. Update status booking menjadi 'selesai'
                 String updateBooking = "UPDATE booking SET status = 'selesai' WHERE id_booking = ?";
                 try (java.sql.PreparedStatement pstmt = conn.prepareStatement(updateBooking)) {
                     pstmt.setInt(1, this.booking.getId_booking());
@@ -139,7 +173,7 @@ this.id_transaksi = DBHelper.insertWithParamsGetId(
                     System.out.println("Status booking berhasil diupdate");
                 }
 
-                // 5. Update status kamar menjadi 'kosong'
+                // 7. Update status kamar menjadi 'kosong'
                 String updateKamar = "UPDATE kamar SET status = 'kosong' WHERE id_kamar = ?";
                 try (java.sql.PreparedStatement pstmt = conn.prepareStatement(updateKamar)) {
                     pstmt.setInt(1, this.booking.getKamar().getId_kamar());
@@ -150,14 +184,18 @@ this.id_transaksi = DBHelper.insertWithParamsGetId(
                     System.out.println("Status kamar berhasil diupdate");
                 }
 
-                // 6. Commit transaksi jika semua berhasil
+                // 8. Commit transaksi jika semua berhasil
                 conn.commit();
                 
                 // Tampilkan pesan sukses
                 JOptionPane.showMessageDialog(
                     null,
                     "Checkout berhasil!\nID Transaksi: " + this.id_transaksi + 
+                    "\nMetode: " + this.metode + 
+                    (this.kode_transaksi != null ? "\nKode Transaksi: " + this.kode_transaksi : "") +
+                    "\nDilayani oleh ID User: " + this.id_user + // 🆕 TAMPILKAN ID USER
                     "\nKamar: " + this.booking.getKamar().getNomor_kamar() +
+                    "\nLama Inap: " + this.lama_inap + " hari" + 
                     "\nTotal Bayar: Rp " + String.format("%,.2f", this.total_bayar),
                     "Checkout Berhasil",
                     JOptionPane.INFORMATION_MESSAGE

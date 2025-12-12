@@ -23,12 +23,25 @@ public class frmCheckout extends javax.swing.JFrame {
     private JButton btnCheckout, btnRefresh;
     private JLabel lblTotalHarga, lblLamaInap, lblCustomer, lblKamar, lblCheckIn, lblCheckOut;
     private JLabel lblTotalHargaValue, lblLamaInapValue, lblCustomerValue, 
-                  lblKamarValue, lblCheckInValue, lblCheckOutValue;
+                    lblKamarValue, lblCheckInValue, lblCheckOutValue;
 
-    public frmCheckout() {
+    // 🆕 FIELD BARU: Menyimpan ID user yang sedang login
+    private int currentUserId; 
+
+    // 🛠️ PERUBAHAN: Konstruktor menerima id_user
+    /**
+     * @param id_user ID pegawai/user yang sedang login
+     */
+    public frmCheckout(int id_user) {
+        this.currentUserId = id_user;
         initComponents();
         isiBookingAktif();
     }
+    
+    // Hapus atau ubah constructor default jika tidak diperlukan lagi
+    // public frmCheckout() {
+    //     this(0); // Contoh: ID 0 untuk testing atau user anonim
+    // }
 
     private void initComponents() {
         setTitle("Form Check-Out");
@@ -50,7 +63,7 @@ public class frmCheckout extends javax.swing.JFrame {
         // Initialize components
         cmbBookingAktif = new JComboBox<>();
         dateCheckout = new DatePicker("yyyy-MM-dd");
-        cmbMetode = new JComboBox<>(new String[]{"Cash", "Transfer", "Kartu Kredit"});
+        cmbMetode = new JComboBox<>(new String[]{"Tunai", "Transfer", "Kartu Kredit"}); // Diganti ke "Tunai" untuk konsistensi
         
         // Initialize labels
         lblCustomer = new JLabel("Customer:");
@@ -240,6 +253,15 @@ public class frmCheckout extends javax.swing.JFrame {
                 return;
             }
             
+            if (this.currentUserId <= 0) { // Cek ID User
+                JOptionPane.showMessageDialog(this, 
+                    "ID Pegawai/User belum diatur. Proses checkout dibatalkan.", 
+                    "Error", 
+                    JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
             Booking selectedBooking = (Booking) cmbBookingAktif.getSelectedItem();
             Date tglCheckoutAktual = new Date(dateCheckout.getDate().getTime());
             String metode = cmbMetode.getSelectedItem().toString();
@@ -265,7 +287,8 @@ public class frmCheckout extends javax.swing.JFrame {
                 "Checkout: " + tglCheckoutAktual + "\n" +
                 "Lama Menginap: " + lblLamaInapValue.getText() + "\n" +
                 "Total Bayar: " + lblTotalHargaValue.getText() + "\n" +
-                "Metode Pembayaran: " + metode,
+                "Metode Pembayaran: " + metode + 
+                "\nDilayani oleh ID User: " + this.currentUserId, // 🆕 TAMPILKAN ID USER
                 "Konfirmasi Checkout",
                 JOptionPane.YES_NO_OPTION
             );
@@ -279,6 +302,7 @@ public class frmCheckout extends javax.swing.JFrame {
             tc.setBooking(selectedBooking);
             tc.setTanggal_checkout_aktual(tglCheckoutAktual);
             tc.setMetode(metode);
+            tc.setId_user(this.currentUserId); // 🆕 SET ID USER
             
             // Save transaction
             tc.save();
@@ -290,20 +314,10 @@ public class frmCheckout extends javax.swing.JFrame {
             // Update booking list
             isiBookingAktif();
             
-            JOptionPane.showMessageDialog(
-                this,
-                "Checkout berhasil!",
-                "Sukses",
-                JOptionPane.INFORMATION_MESSAGE
-            );
+            // Pesan sukses sudah ditangani di TransaksiCheckout.save()
             
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(
-                this, 
-                "Gagal melakukan checkout: " + e.getMessage(), 
-                "Error", 
-                JOptionPane.ERROR_MESSAGE
-            );
+            // Pesan error sudah ditangani di TransaksiCheckout.save()
             e.printStackTrace();
         }
     }
@@ -316,7 +330,8 @@ public class frmCheckout extends javax.swing.JFrame {
         }
         
         SwingUtilities.invokeLater(() -> {
-            new frmCheckout().setVisible(true);
+            // 🛠️ PENTING: Ganti 1 dengan ID user yang sebenarnya setelah login
+            new frmCheckout(1).setVisible(true); 
         });
     }
 }
