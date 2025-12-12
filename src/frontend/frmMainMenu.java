@@ -1,5 +1,6 @@
 package frontend;
 
+import backend.Users;
 import javax.swing.*;
 import java.awt.*;
 
@@ -95,7 +96,13 @@ public class frmMainMenu extends JFrame {
         // --- Action Listeners ---
         btnKamar.addActionListener(e -> new frmKamar().setVisible(true)); 
         btnCustomer.addActionListener(e -> new frmCustomer().setVisible(true));
-        btnBooking.addActionListener(e -> new frmBooking().setVisible(true));
+        btnBooking.addActionListener(e -> {
+            Users currentUser = new Users();
+            currentUser.setId_user(userId);
+            currentUser.setUsername(username);
+            currentUser.setRole(role);
+            new frmBooking(currentUser).setVisible(true);
+        });
         btnCheckout.addActionListener(e -> new frmCheckout(userId).setVisible(true));
         
         btnLogout.addActionListener(e -> {

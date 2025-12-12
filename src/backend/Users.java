@@ -3,7 +3,6 @@ package backend;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Connection;
-import java.sql.Statement;
 import java.util.ArrayList;
 
 public class Users {
@@ -14,7 +13,7 @@ public class Users {
 
     public Users() {}
     
-    //Getter dan Setter
+    // --- Getter dan Setter ---
     public int getId_user() { return id_user; }
     public void setId_user(int id_user) { this.id_user = id_user; }
     public String getUsername() { return username; }
@@ -24,6 +23,35 @@ public class Users {
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
 
+    // Helper method untuk memetakan ResultSet ke objek Users
+    private Users mapResultSetToUsers(ResultSet rs) throws SQLException {
+        Users user = new Users();
+        user.setId_user(rs.getInt("id_user"));
+        user.setUsername(rs.getString("username"));
+        // Asumsi kolom password ada, jika tidak, hapus baris ini
+        try {
+            user.setPassword(rs.getString("password"));
+        } catch (SQLException ignored) {
+            // Kolom password mungkin tidak diambil, ini diabaikan
+        }
+        user.setRole(rs.getString("role"));
+        return user;
+    }
+
+    // BARU: Method untuk mengambil Users berdasarkan ID
+    public Users getById(int id) {
+        String query = "SELECT * FROM users WHERE id_user = " + id;
+        
+        try (ResultSet rs = DBHelper.selectQuery(query)) {
+            if (rs.next()) {
+                return mapResultSetToUsers(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return new Users();
+    }
+    
     //1. Login
     public Users login(String username, String password) {
         Users user = null;
@@ -32,11 +60,7 @@ public class Users {
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             if (rs.next()) {
-                user = new Users();
-                user.setId_user(rs.getInt("id_user"));
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                user.setRole(rs.getString("role"));
+                user = mapResultSetToUsers(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -68,16 +92,13 @@ public class Users {
     //3. Mengambil Semua Data Users (Untuk Admin)
     public ArrayList<Users> getAllUsers() {
         ArrayList<Users> listUsers = new ArrayList<>();
-        String sql = "SELECT id_user, username, role FROM users";
+        // Asumsi query ini sudah mengambil semua kolom yang diperlukan oleh mapResultSetToUsers
+        String sql = "SELECT id_user, username, role, password FROM users"; 
         
         try (ResultSet rs = DBHelper.selectQuery(sql)) {
             
             while (rs.next()) {
-                Users user = new Users();
-                user.setId_user(rs.getInt("id_user"));
-                user.setUsername(rs.getString("username"));
-                user.setRole(rs.getString("role"));
-                listUsers.add(user);
+                listUsers.add(mapResultSetToUsers(rs));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -88,16 +109,11 @@ public class Users {
     //Search berdasarkan Username
     public ArrayList<Users> searchUsers(String keyword) {
         ArrayList<Users> listUsers = new ArrayList<>();
-        // Pencarian berdasarkan username
-        String sql = "SELECT id_user, username, role FROM users WHERE username LIKE '%" + keyword + "%'";
+        String sql = "SELECT id_user, username, role, password FROM users WHERE username LIKE '%" + keyword + "%'";
 
         try (ResultSet rs = DBHelper.selectQuery(sql)) {
             while (rs.next()) {
-                Users user = new Users();
-                user.setId_user(rs.getInt("id_user"));
-                user.setUsername(rs.getString("username"));
-                user.setRole(rs.getString("role"));
-                listUsers.add(user);
+                listUsers.add(mapResultSetToUsers(rs));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -138,5 +154,10 @@ public class Users {
             return DBHelper.executeQuery(updateQuery); 
         }
         return false;
+    }
+    
+    @Override
+    public String toString() {
+        return "ID: " + id_user + " - " + username + " (" + role + ")";
     }
 }

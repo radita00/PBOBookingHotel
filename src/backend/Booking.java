@@ -9,6 +9,7 @@ public class Booking {
     private int id_booking;
     private Customer customer;
     private Kamar kamar;
+    private Users user;
     private Date tanggal_checkin;
     private Date tanggal_checkout;
     private double total_harga;
@@ -17,13 +18,19 @@ public class Booking {
     public Booking() {
     }
 
-    public Booking(Customer customer, Kamar kamar, Date tgl_checkin, Date tgl_checkout, double total_harga) {
+    public Booking(Customer customer, Kamar kamar, Users user, Date tgl_checkin, Date tgl_checkout, double total_harga) {
         setCustomer(customer);
         setKamar(kamar);
+        setUser(user);
         setTanggal_checkin(tgl_checkin);
         setTanggal_checkout(tgl_checkout);
         setTotal_harga(total_harga);
         this.status = "booked";
+    }
+
+    // Keep the old constructor for backward compatibility
+    public Booking(Customer customer, Kamar kamar, Date tgl_checkin, Date tgl_checkout, double total_harga) {
+        this(customer, kamar, null, tgl_checkin, tgl_checkout, total_harga);
     }
 
     // --- GETTERS & SETTERS (Dipertahankan) ---
@@ -44,6 +51,9 @@ public class Booking {
         this.tanggal_checkout = Objects.requireNonNull(tanggal_checkout, "Tanggal check-out tidak boleh null"); 
         validateDates(); 
     }
+    public Users getUser() { return user; }
+    public void setUser(Users user) { this.user = Objects.requireNonNull(user, "User tidak boleh null"); }
+    
     public double getTotal_harga() { return total_harga; }
     public void setTotal_harga(double total_harga) { 
         if (total_harga < 0) { throw new IllegalArgumentException("Total harga tidak boleh negatif"); }
@@ -80,8 +90,8 @@ public class Booking {
                 conn.setAutoCommit(false); // Matikan autocommit
                 
                 // 2. INSERT data booking
-                String sqlInsert = "INSERT INTO booking (id_customer, id_kamar, tanggal_checkin, tanggal_checkout, total_harga, status) " +
-                                 "VALUES (?, ?, ?, ?, ?, ?)";
+                String sqlInsert = "INSERT INTO booking (id_customer, id_kamar, id_user, tanggal_checkin, tanggal_checkout, total_harga, status) " +
+                                 "VALUES (?, ?, ?, ?, ?, ?, ?)";
                 
                 int generatedId = -1;
                 
@@ -89,10 +99,11 @@ public class Booking {
                     
                     stmt.setInt(1, this.customer.getId_customer());
                     stmt.setInt(2, this.kamar.getId_kamar());
-                    stmt.setDate(3, new java.sql.Date(this.tanggal_checkin.getTime()));
-                    stmt.setDate(4, new java.sql.Date(this.tanggal_checkout.getTime()));
-                    stmt.setDouble(5, this.total_harga);
-                    stmt.setString(6, this.status);
+                    stmt.setInt(3, this.user.getId_user());
+                    stmt.setDate(4, new java.sql.Date(this.tanggal_checkin.getTime()));
+                    stmt.setDate(5, new java.sql.Date(this.tanggal_checkout.getTime()));
+                    stmt.setDouble(6, this.total_harga);
+                    stmt.setString(7, this.status);
                     
                     int affectedRows = stmt.executeUpdate();
                     

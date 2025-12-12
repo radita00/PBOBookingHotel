@@ -3,6 +3,7 @@ package frontend;
 import backend.Booking;
 import backend.Customer;
 import backend.Kamar;
+import backend.Users; // Import Users
 import util.DatePicker;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -22,9 +23,14 @@ public class frmBooking extends JFrame {
     private JTextField txtNomorKamar;
     private JScrollPane scrollPane;
     private ArrayList<Kamar> daftarKamarTersedia;
+    
+    private Users userLogin; // BARU: Field untuk menyimpan user yang sedang login
 
-    public frmBooking() {
-        setTitle("Form Booking / Check-In");
+    // MODIFIKASI KONSTRUKTOR untuk menerima Users
+    public frmBooking(Users userLogin) {
+        this.userLogin = userLogin; // Simpan user yang sedang login
+        
+        setTitle("Form Booking / Check-In (Operator: " + userLogin.getUsername() + ")"); // Opsional: Tampilkan nama user
         setSize(900, 650);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
@@ -106,7 +112,6 @@ public class frmBooking extends JFrame {
         isiCustomer();
         
         // Event listener untuk otomatis menampilkan kamar setelah memilih check-out
-        // Menggunakan PropertyChangeListener untuk DatePicker
         dateCheckOut.addPropertyChangeListener("date", new PropertyChangeListener() {
             @Override
             public void propertyChange(PropertyChangeEvent evt) {
@@ -122,6 +127,11 @@ public class frmBooking extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    // KONSTRUKTOR DEFAULT (Dihapus atau dipertahankan jika dibutuhkan, tetapi tidak disarankan)
+    // public frmBooking() {
+    //    this(new Users().getById(1)); // Contoh: Jika Anda ingin menggunakan ID 1 sebagai default jika tidak ada user login
+    // }
+
     private void isiCustomer() {
         ArrayList<Customer> list = new Customer().getAll();
         cmbCustomer.removeAllItems();
@@ -134,19 +144,18 @@ public class frmBooking extends JFrame {
     }
 
     private void tampilkanKamarTersedia() {
+        // ... (Logika tampilkanKamarTersedia tetap sama)
         try {
             if (dateCheckIn.getDate() == null || dateCheckOut.getDate() == null) {
                 JOptionPane.showMessageDialog(this, "Tanggal check-in dan check-out harus diisi!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
-            // Validasi tanggal check-out harus setelah check-in
             if (!dateCheckOut.getDate().after(dateCheckIn.getDate())) {
                 JOptionPane.showMessageDialog(this, "Tanggal check-out harus setelah tanggal check-in!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
-            // Validasi tanggal check-in tidak boleh sebelum hari ini
             Calendar today = Calendar.getInstance();
             today.set(Calendar.HOUR_OF_DAY, 0);
             today.set(Calendar.MINUTE, 0);
@@ -163,17 +172,15 @@ public class frmBooking extends JFrame {
 
             daftarKamarTersedia = new Kamar().getKamarTersedia(tglIn, tglOut);
             
-            // Kosongkan tabel
             modelTabel.setRowCount(0);
             
             if (daftarKamarTersedia.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Tidak ada kamar tersedia pada tanggal tersebut.", "Info", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                // Isi tabel dengan data kamar
                 for (Kamar k : daftarKamarTersedia) {
                     Object[] row = {
                         k.getNomor_kamar(),
-                        k.getTipe(),  // Diperbaiki dari getTipe_kamar() ke getTipe()
+                        k.getTipe(),
                         String.format("Rp %,.0f", k.getHarga()),
                         k.getStatus()
                     };
@@ -202,7 +209,6 @@ public class frmBooking extends JFrame {
                 return;
             }
             
-            // Cek apakah ada kamar yang dipilih dari tabel
             int selectedRow = tblKamar.getSelectedRow();
             if (selectedRow == -1) {
                 JOptionPane.showMessageDialog(this, "Pilih kamar dari tabel terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -214,7 +220,6 @@ public class frmBooking extends JFrame {
                 return;
             }
             
-            // Ambil kamar yang dipilih dari ArrayList berdasarkan index tabel
             Kamar selectedKamar = daftarKamarTersedia.get(selectedRow);
             
             Customer selectedCustomer = (Customer) cmbCustomer.getSelectedItem();
@@ -222,11 +227,13 @@ public class frmBooking extends JFrame {
             Date tglOut = new Date(dateCheckOut.getDate().getTime());
             double hargaAwal = selectedKamar.getHarga();
 
-            Booking b = new Booking(selectedCustomer, selectedKamar, tglIn, tglOut, hargaAwal);
-            b.save();
+            // MODIFIKASI: Panggil konstruktor Booking yang baru (termasuk userLogin)
+            Booking b = new Booking(selectedCustomer, selectedKamar, userLogin, tglIn, tglOut, hargaAwal);
+b.save();
 
             JOptionPane.showMessageDialog(this, 
                 "Booking berhasil dibuat!\n" +
+                "Operator: " + userLogin.getUsername() + "\n" + // Tampilkan operator yang membuat booking
                 "ID Booking: " + b.getId_booking() + "\n" +
                 "Kamar: " + selectedKamar.getNomor_kamar() + "\n" +
                 "Tipe: " + selectedKamar.getTipe() + "\n" +
