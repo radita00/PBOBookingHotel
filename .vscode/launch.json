@@ -4,8 +4,20 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
-
+        {
+            "type": "java",
+            "name": "frmCheckout",
+            "request": "launch",
+            "mainClass": "frontend.frmCheckout",
+            "projectName": "PBOBookingHotel_603f8dfb"
+        },
+        {
+            "type": "java",
+            "name": "frmLogin",
+            "request": "launch",
+            "mainClass": "frontend.frmLogin",
+            "projectName": "PBOBookingHotel_603f8dfb"
+        },
         {
             "type": "jdk",
             "request": "launch",

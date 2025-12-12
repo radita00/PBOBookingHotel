@@ -5,6 +5,9 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import java.util.ArrayList;
 
+// Asumsi ada kelas DBHelper yang memiliki selectQuery dan executeQuery
+// import util.DBHelper; // Pastikan Anda mengimpor DBHelper dengan benar
+
 public class Users {
     private int id_user;
     private String username;
@@ -28,7 +31,7 @@ public class Users {
         Users user = new Users();
         user.setId_user(rs.getInt("id_user"));
         user.setUsername(rs.getString("username"));
-        // Asumsi kolom password ada, jika tidak, hapus baris ini
+        // Asumsi kolom password ada, jika tidak, hapus try-catch ini
         try {
             user.setPassword(rs.getString("password"));
         } catch (SQLException ignored) {
@@ -40,23 +43,36 @@ public class Users {
 
     // BARU: Method untuk mengambil Users berdasarkan ID
     public Users getById(int id) {
-        String query = "SELECT * FROM users WHERE id_user = " + id;
+        String query = "SELECT id_user, username, role, password FROM users WHERE id_user = " + id;
         
-        try (ResultSet rs = DBHelper.selectQuery(query)) {
+        // NOTE: Asumsi DBHelper.selectQuery mengembalikan ResultSet yang harus ditutup.
+        try (ResultSet rs = DBHelper.selectQuery(query)) { 
             if (rs.next()) {
                 return mapResultSetToUsers(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return new Users();
+        return new Users(); // Mengembalikan objek Users kosong jika tidak ditemukan
+    }
+    
+    // 🎯 FUNGSI BARU: Mengambil Username secara statis berdasarkan ID
+    public static String getUsernameById(int id_user) {
+        Users user = new Users().getById(id_user);
+        
+        // Cek jika user ditemukan (asumsi id_user > 0 menandakan user valid)
+        if (user.getId_user() > 0) {
+            return user.getUsername();
+        } else {
+            return "User Not Found (ID: " + id_user + ")";
+        }
     }
     
     //1. Login
     public Users login(String username, String password) {
         Users user = null;
-        String query = "SELECT * FROM users WHERE username = '" + username 
-                        + "' AND password = '" + password + "'";
+        String query = "SELECT id_user, username, role, password FROM users WHERE username = '" + username 
+                         + "' AND password = '" + password + "'";
 
         try (ResultSet rs = DBHelper.selectQuery(query)) {
             if (rs.next()) {
@@ -70,10 +86,10 @@ public class Users {
     
     //2. Registrasi Pegawai
     public boolean registerPegawai(String username, String password) {
-        String cekQuery = "SELECT * FROM users WHERE username = '" + username + "'";
+        String cekQuery = "SELECT id_user FROM users WHERE username = '" + username + "'";
         try (ResultSet rs = DBHelper.selectQuery(cekQuery)) {
             if (rs.next()) {
-                return false;
+                return false; // Username sudah ada
             }
             
             String query = "INSERT INTO users (username, password, role) VALUES ('"
@@ -142,7 +158,7 @@ public class Users {
             if (rs.next()) {
                 id_user = rs.getInt("id_user");
             } else {
-                return false;
+                return false; // User tidak ditemukan
             }
         } catch (SQLException e) {
             e.printStackTrace();

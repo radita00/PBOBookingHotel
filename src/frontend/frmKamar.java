@@ -15,7 +15,7 @@ public class frmKamar extends JFrame {
     private JComboBox<String> cmbTipe, cmbStatus;
     private JTable tblKamar;
     private JButton btnSimpan, btnHapus, btnClear;
-    private JTextField txtCariKamar; // 🆕 Field baru
+    private JTextField txtCariKamar;
     private int idKamarSedangEdit = 0;
 
     public frmKamar() {
@@ -67,7 +67,7 @@ public class frmKamar extends JFrame {
         panelSearch.add(txtCariKamar);
         
         panelNorth.add(panelInput, BorderLayout.CENTER);
-        panelNorth.add(panelSearch, BorderLayout.SOUTH); // Letakkan di bawah input
+        panelNorth.add(panelSearch, BorderLayout.SOUTH);
         
         add(panelNorth, BorderLayout.NORTH);
         
@@ -77,9 +77,9 @@ public class frmKamar extends JFrame {
         add(scrollPane, BorderLayout.CENTER);
         
         // --- LOGIKA ---
-        tampilkanData(""); // Panggil dengan keyword kosong di awal
+        tampilkanData("");
         
-        // 🆕 Listener Pencarian
+        // Listener Pencarian
         txtCariKamar.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
@@ -112,7 +112,7 @@ public class frmKamar extends JFrame {
         setLocationRelativeTo(null);
     }
     
-    // 🔄 Modifikasi method untuk menerima keyword
+    // Modifikasi method untuk menerima keyword
     private void tampilkanData(String keyword) {
         String[] kolom = {"ID", "Nomor", "Tipe", "Harga", "Status"};
         DefaultTableModel model = new DefaultTableModel(kolom, 0);
@@ -147,20 +147,59 @@ public class frmKamar extends JFrame {
             }
             
             Kamar k;
+            String statusLama = "";
+            String statusBaru = cmbStatus.getSelectedItem().toString();
+            
             if (idKamarSedangEdit > 0) {
                 k = new Kamar().getById(idKamarSedangEdit);
-                if (k.getId_kamar() == 0) { // Cek ID yang dikembalikan
+                if (k.getId_kamar() == 0) {
                     JOptionPane.showMessageDialog(this, "Data kamar tidak ditemukan!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
+                statusLama = k.getStatus();
+                
+                // 1. Validasi Kamar sedang di-booking (status 'terisi')
+                if (statusLama.equals("terisi")) {
+                    // Cek apakah ada upaya untuk mengubah status dari 'terisi'
+                    if (!statusBaru.equals(statusLama)) {
+                        JOptionPane.showMessageDialog(this, 
+                            "Kamar " + k.getNomor_kamar() + " (ID: " + idKamarSedangEdit + ") sedang terisi (booked) dan tidak dapat diubah statusnya.", 
+                            "Peringatan Status", JOptionPane.WARNING_MESSAGE);
+                        // Kembalikan ComboBox ke status lama dan hentikan proses
+                        cmbStatus.setSelectedItem(statusLama);
+                        return;
+                    }
+                } 
+                
+                // 2. Validasi Kamar tidak boleh diubah ke 'terisi' secara manual (harus melalui booking)
+                if (statusBaru.equals("terisi") && !statusLama.equals("terisi")) {
+                    JOptionPane.showMessageDialog(this, 
+                        "Kamar hanya dapat diubah statusnya menjadi 'terisi' melalui proses Booking/Check-in.", 
+                        "Peringatan Status", JOptionPane.WARNING_MESSAGE);
+                    // Kembalikan ComboBox ke status lama dan hentikan proses
+                    cmbStatus.setSelectedItem(statusLama);
+                    return;
+                }
+                
+                // 3. Validasi Kamar 'perawatan' tidak bisa dibooking/diisi (sama dengan poin 2)
+                // Jika statusLama='perawatan' dan statusBaru='terisi', maka sudah terhalang oleh poin 2.
+                // Jika kita ingin memastikan kamar perawatan tetap perawatan/kosong/lain, kita bisa tambahkan logika di sini.
+                // Untuk saat ini, kita hanya memastikan 'terisi' tidak bisa diset manual.
+
             } else {
+                // Proses Insert, Kamar baru selalu diset 'kosong'
                 k = new Kamar();
+                if (statusBaru.equals("terisi")) {
+                    JOptionPane.showMessageDialog(this, "Kamar baru tidak bisa diset status 'terisi'.", "Peringatan", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
             }
             
+            // Lanjutkan penyimpanan jika validasi lolos
             k.setNomor_kamar(txtNomor.getText());
             k.setTipe(cmbTipe.getSelectedItem().toString());
             k.setHarga(Double.parseDouble(txtHarga.getText()));
-            k.setStatus(cmbStatus.getSelectedItem().toString());
+            k.setStatus(statusBaru); // Gunakan statusBaru yang sudah divalidasi
             
             k.save();
             
@@ -183,7 +222,7 @@ public class frmKamar extends JFrame {
         cmbStatus.setSelectedIndex(0);
         btnSimpan.setText("Simpan");
         btnHapus.setEnabled(false);
-        txtCariKamar.setText(""); // Bersihkan field search
+        txtCariKamar.setText("");
         tampilkanData("");
     }
 
@@ -195,7 +234,15 @@ public class frmKamar extends JFrame {
         }
         
         int id = Integer.parseInt(tblKamar.getValueAt(row, 0).toString());
-        int confirm = JOptionPane.showConfirmDialog(this, "Anda yakin ingin menghapus kamar ini?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
+        String statusKamar = tblKamar.getValueAt(row, 4).toString();
+        String nomorKamar = tblKamar.getValueAt(row, 1).toString();
+        
+        if (statusKamar.equals("terisi")) {
+            JOptionPane.showMessageDialog(this, "Kamar " + nomorKamar + " (ID: " + id + ") sedang terisi dan tidak dapat dihapus.", "Peringatan Hapus", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(this, "Anda yakin ingin menghapus kamar " + nomorKamar + "?", "Konfirmasi", JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
             if (new Kamar().delete(id)) {
