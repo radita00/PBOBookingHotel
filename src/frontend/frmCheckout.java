@@ -15,6 +15,7 @@ import javax.swing.event.DocumentListener;
 
 import backend.Booking;
 import backend.TransaksiCheckout;
+// import backend.AuthService; // Pastikan Anda TIDAK mengimpor AuthService jika Anda tidak menggunakannya
 
 public class frmCheckout extends javax.swing.JFrame {
     private JComboBox<Booking> cmbBookingAktif;
@@ -23,12 +24,12 @@ public class frmCheckout extends javax.swing.JFrame {
     private JButton btnCheckout, btnRefresh;
     private JLabel lblTotalHarga, lblLamaInap, lblCustomer, lblKamar, lblCheckIn, lblCheckOut;
     private JLabel lblTotalHargaValue, lblLamaInapValue, lblCustomerValue, 
-                    lblKamarValue, lblCheckInValue, lblCheckOutValue;
+                         lblKamarValue, lblCheckInValue, lblCheckOutValue;
 
-    // 🆕 FIELD BARU: Menyimpan ID user yang sedang login
+    // KUNCI #1: Menyimpan ID user yang disalurkan dari frmMainMenu
     private int currentUserId; 
 
-    // 🛠️ PERUBAHAN: Konstruktor menerima id_user
+    // KUNCI #2: Konstruktor menerima id_user
     /**
      * @param id_user ID pegawai/user yang sedang login
      */
@@ -36,15 +37,12 @@ public class frmCheckout extends javax.swing.JFrame {
         this.currentUserId = id_user;
         initComponents();
         isiBookingAktif();
+        // Hanya untuk debugging:
+        System.out.println("frmCheckout dibuka oleh User ID: " + this.currentUserId);
     }
-    
-    // Hapus atau ubah constructor default jika tidak diperlukan lagi
-    // public frmCheckout() {
-    //     this(0); // Contoh: ID 0 untuk testing atau user anonim
-    // }
 
     private void initComponents() {
-        setTitle("Form Check-Out");
+        setTitle("Form Check-Out (Dilayani oleh User ID: " + this.currentUserId + ")"); // Tampilkan ID di Title
         setSize(700, 500);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
@@ -63,7 +61,7 @@ public class frmCheckout extends javax.swing.JFrame {
         // Initialize components
         cmbBookingAktif = new JComboBox<>();
         dateCheckout = new DatePicker("yyyy-MM-dd");
-        cmbMetode = new JComboBox<>(new String[]{"Tunai", "Transfer", "Kartu Kredit"}); // Diganti ke "Tunai" untuk konsistensi
+        cmbMetode = new JComboBox<>(new String[]{"Tunai", "Transfer", "Kartu Kredit"}); 
         
         // Initialize labels
         lblCustomer = new JLabel("Customer:");
@@ -288,7 +286,7 @@ public class frmCheckout extends javax.swing.JFrame {
                 "Lama Menginap: " + lblLamaInapValue.getText() + "\n" +
                 "Total Bayar: " + lblTotalHargaValue.getText() + "\n" +
                 "Metode Pembayaran: " + metode + 
-                "\nDilayani oleh ID User: " + this.currentUserId, // 🆕 TAMPILKAN ID USER
+                "\nDilayani oleh ID User: " + this.currentUserId, // TAMPILKAN ID USER
                 "Konfirmasi Checkout",
                 JOptionPane.YES_NO_OPTION
             );
@@ -302,7 +300,8 @@ public class frmCheckout extends javax.swing.JFrame {
             tc.setBooking(selectedBooking);
             tc.setTanggal_checkout_aktual(tglCheckoutAktual);
             tc.setMetode(metode);
-            tc.setId_user(this.currentUserId); // 🆕 SET ID USER
+            // 🚨 KUNCI #3: SET ID USER DARI FIELD PRIVATE SECARA OTOMATIS
+            tc.setId_user(this.currentUserId); 
             
             // Save transaction
             tc.save();
@@ -330,7 +329,9 @@ public class frmCheckout extends javax.swing.JFrame {
         }
         
         SwingUtilities.invokeLater(() -> {
-            // 🛠️ PENTING: Ganti 1 dengan ID user yang sebenarnya setelah login
+            // 🛠️ PENTING: INI HANYA UNTUK TESTING FORM INI SECARA LANGSUNG.
+            // Dalam aplikasi sesungguhnya, form ini dibuka dari frmMainMenu 
+            // dengan ID user yang didapat dari proses login.
             new frmCheckout(1).setVisible(true); 
         });
     }

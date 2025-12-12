@@ -18,7 +18,7 @@ public class TransaksiCheckout {
     private double total_bayar;
     private String metode;
     private String kode_transaksi;
-    private int id_user; // 🆕 FIELD BARU: ID Pegawai yang melakukan checkout
+    private int id_user; // FIELD BARU: ID Pegawai yang melakukan checkout
 
     // --- Konstruktor, Getter, dan Setter ---
     
@@ -40,8 +40,9 @@ public class TransaksiCheckout {
     public String getKode_transaksi() { return kode_transaksi; }
     public void setKode_transaksi(String kode_transaksi) { this.kode_transaksi = kode_transaksi; }
 
-    // 🆕 GETTER DAN SETTER UNTUK ID USER
+    // GETTER DAN SETTER UNTUK ID USER
     public int getId_user() { return id_user; }
+    // 🚨 KUNCI #1: Method ini dipanggil oleh frmCheckout
     public void setId_user(int id_user) { this.id_user = id_user; }
 
     /**
@@ -79,8 +80,9 @@ public class TransaksiCheckout {
         if (this.tanggal_checkout_aktual == null) {
             throw new IllegalArgumentException("Tanggal checkout harus diisi");
         }
+        // 🚨 KUNCI #2: Validasi ID User (Pegawai)
         if (this.id_user <= 0) {
-            throw new IllegalArgumentException("ID User (Pegawai) harus diisi."); // 🆕 VALIDASI ID USER
+            throw new IllegalArgumentException("ID User (Pegawai) harus diisi."); 
         }
         // Validasi tanggal checkout tidak boleh sebelum tanggal check-in
         if (this.tanggal_checkout_aktual.before(this.booking.getTanggal_checkin())) {
@@ -132,7 +134,7 @@ public class TransaksiCheckout {
 
             try {
                 // 5. Simpan transaksi checkout
-                // 🛠️ PERUBAHAN SQL: Tambahkan kolom id_user
+                // 🚨 KUNCI #3: SQL Query sudah menyertakan kolom id_user
                 String sql = "INSERT INTO transaksi_checkout (tanggal_checkout, id_customer, tanggal_checkin, "
                             + "tanggal_transaksi, lama_inap, total_bayar, metode, kode_transaksi, id_booking, id_user) "
                             + "VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)"; // Total 9 Placeholder + NOW()
@@ -147,7 +149,7 @@ public class TransaksiCheckout {
                     this.metode,
                     this.kode_transaksi, 
                     this.booking.getId_booking(),
-                    this.id_user // 🆕 TAMBAHKAN ID USER
+                    this.id_user // 🚨 KUNCI #4: Menyertakan nilai id_user
                 };
 
                 this.id_transaksi = DBHelper.insertWithParamsGetId(
@@ -193,7 +195,7 @@ public class TransaksiCheckout {
                     "Checkout berhasil!\nID Transaksi: " + this.id_transaksi + 
                     "\nMetode: " + this.metode + 
                     (this.kode_transaksi != null ? "\nKode Transaksi: " + this.kode_transaksi : "") +
-                    "\nDilayani oleh ID User: " + this.id_user + // 🆕 TAMPILKAN ID USER
+                    "\nDilayani oleh ID User: " + this.id_user + // TAMPILKAN ID USER
                     "\nKamar: " + this.booking.getKamar().getNomor_kamar() +
                     "\nLama Inap: " + this.lama_inap + " hari" + 
                     "\nTotal Bayar: Rp " + String.format("%,.2f", this.total_bayar),

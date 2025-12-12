@@ -5,25 +5,32 @@ import backend.Customer;
 import backend.Kamar;
 import util.DatePicker;
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
 import java.sql.Date;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeEvent;
 
 public class frmBooking extends JFrame {
     private JComboBox<Customer> cmbCustomer;
-    private JComboBox<Kamar> cmbKamar;
     private DatePicker dateCheckIn, dateCheckOut;
-    private JButton btnCariKamar, btnBooking;
+    private JButton btnTampilkanKamar, btnBooking;
+    private JTable tblKamar;
+    private DefaultTableModel modelTabel;
+    private JTextField txtNomorKamar;
+    private JScrollPane scrollPane;
+    private ArrayList<Kamar> daftarKamarTersedia;
 
     public frmBooking() {
         setTitle("Form Booking / Check-In");
-        setSize(700, 500);
+        setSize(900, 650);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLayout(new java.awt.BorderLayout(10, 10));
+        setLayout(new BorderLayout(10, 10));
         
         // --- Panel Input ---
-        JPanel panelInput = new JPanel(new java.awt.GridLayout(5, 2, 5, 5));
+        JPanel panelInput = new JPanel(new GridLayout(6, 2, 5, 5));
         panelInput.setBorder(BorderFactory.createTitledBorder("Input Data Booking"));
         
         panelInput.add(new JLabel("Customer:"));
@@ -38,23 +45,78 @@ public class frmBooking extends JFrame {
         dateCheckOut = new DatePicker("yyyy-MM-dd");
         panelInput.add(dateCheckOut);
         
-        panelInput.add(new JLabel("Kamar Tersedia:"));
-        cmbKamar = new JComboBox<>();
-        panelInput.add(cmbKamar);
+        panelInput.add(new JLabel(""));
+        btnTampilkanKamar = new JButton("Tampilkan Kamar Tersedia");
+        panelInput.add(btnTampilkanKamar);
         
-        JPanel panelButton = new JPanel();
-        btnCariKamar = new JButton("Cari Kamar");
+        panelInput.add(new JLabel("Nomor Kamar Dipilih:"));
+        txtNomorKamar = new JTextField();
+        txtNomorKamar.setEditable(false);
+        txtNomorKamar.setBackground(Color.LIGHT_GRAY);
+        txtNomorKamar.setToolTipText("Nomor kamar yang dipilih dari tabel");
+        panelInput.add(txtNomorKamar);
+        
+        JPanel panelButtonBooking = new JPanel();
         btnBooking = new JButton("Booking");
-        panelButton.add(btnCariKamar);
-        panelButton.add(btnBooking);
-        panelInput.add(panelButton);
+        panelButtonBooking.add(btnBooking);
+        panelInput.add(new JLabel(""));
+        panelInput.add(panelButtonBooking);
         
-        add(panelInput, java.awt.BorderLayout.CENTER);
+        add(panelInput, BorderLayout.NORTH);
+        
+        // --- Panel Tabel ---
+        JPanel panelTabel = new JPanel(new BorderLayout());
+        panelTabel.setBorder(BorderFactory.createTitledBorder("Kamar Tersedia"));
+        
+        String[] kolom = {"No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
+        modelTabel = new DefaultTableModel(kolom, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        
+        tblKamar = new JTable(modelTabel);
+        tblKamar.getTableHeader().setReorderingAllowed(false);
+        tblKamar.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        // Event saat single click untuk memilih, double click untuk langsung booking
+        tblKamar.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                if (evt.getClickCount() == 1) {
+                    pilihKamarDariTabel();
+                } else if (evt.getClickCount() == 2) {
+                    buatBooking();
+                }
+            }
+        });
+        
+        scrollPane = new JScrollPane(tblKamar);
+        panelTabel.add(scrollPane, BorderLayout.CENTER);
+        
+        JLabel lblInfo = new JLabel("Klik untuk memilih kamar | Double-click untuk langsung booking");
+        lblInfo.setFont(new Font("Arial", Font.ITALIC, 11));
+        lblInfo.setHorizontalAlignment(SwingConstants.CENTER);
+        panelTabel.add(lblInfo, BorderLayout.SOUTH);
+        
+        add(panelTabel, BorderLayout.CENTER);
         
         // --- LOGIKA ---
+        daftarKamarTersedia = new ArrayList<>();
         isiCustomer();
         
-        btnCariKamar.addActionListener(e -> cariKamar());
+        // Event listener untuk otomatis menampilkan kamar setelah memilih check-out
+        // Menggunakan PropertyChangeListener untuk DatePicker
+        dateCheckOut.addPropertyChangeListener("date", new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                if (dateCheckIn.getDate() != null && dateCheckOut.getDate() != null) {
+                    tampilkanKamarTersedia();
+                }
+            }
+        });
+        
+        btnTampilkanKamar.addActionListener(e -> tampilkanKamarTersedia());
         btnBooking.addActionListener(e -> buatBooking());
         
         setLocationRelativeTo(null);
@@ -71,7 +133,7 @@ public class frmBooking extends JFrame {
         }
     }
 
-    private void cariKamar() {
+    private void tampilkanKamarTersedia() {
         try {
             if (dateCheckIn.getDate() == null || dateCheckOut.getDate() == null) {
                 JOptionPane.showMessageDialog(this, "Tanggal check-in dan check-out harus diisi!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -99,44 +161,85 @@ public class frmBooking extends JFrame {
             Date tglIn = new Date(dateCheckIn.getDate().getTime());
             Date tglOut = new Date(dateCheckOut.getDate().getTime());
 
-            ArrayList<Kamar> list = new Kamar().getKamarTersedia(tglIn, tglOut);
+            daftarKamarTersedia = new Kamar().getKamarTersedia(tglIn, tglOut);
             
-            cmbKamar.removeAllItems();
-            if (list.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Tidak ada kamar tersedia pada tanggal tersebut.");
+            // Kosongkan tabel
+            modelTabel.setRowCount(0);
+            
+            if (daftarKamarTersedia.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Tidak ada kamar tersedia pada tanggal tersebut.", "Info", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                for (Kamar k : list) {
-                    cmbKamar.addItem(k);
+                // Isi tabel dengan data kamar
+                for (Kamar k : daftarKamarTersedia) {
+                    Object[] row = {
+                        k.getNomor_kamar(),
+                        k.getTipe(),  // Diperbaiki dari getTipe_kamar() ke getTipe()
+                        String.format("Rp %,.0f", k.getHarga()),
+                        k.getStatus()
+                    };
+                    modelTabel.addRow(row);
                 }
-                JOptionPane.showMessageDialog(this, "Ditemukan " + list.size() + " kamar tersedia.");
+                JOptionPane.showMessageDialog(this, "Ditemukan " + daftarKamarTersedia.size() + " kamar tersedia.", "Info", JOptionPane.INFORMATION_MESSAGE);
             }
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Terjadi kesalahan: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void pilihKamarDariTabel() {
+        int selectedRow = tblKamar.getSelectedRow();
+        if (selectedRow != -1) {
+            String nomorKamar = modelTabel.getValueAt(selectedRow, 0).toString();
+            txtNomorKamar.setText(nomorKamar);
         }
     }
 
     private void buatBooking() {
         try {
-            if (cmbCustomer.getSelectedItem() == null || cmbKamar.getSelectedItem() == null) {
-                JOptionPane.showMessageDialog(this, "Pilih customer dan kamar terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
+            if (cmbCustomer.getSelectedItem() == null) {
+                JOptionPane.showMessageDialog(this, "Pilih customer terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             
+            // Cek apakah ada kamar yang dipilih dari tabel
+            int selectedRow = tblKamar.getSelectedRow();
+            if (selectedRow == -1) {
+                JOptionPane.showMessageDialog(this, "Pilih kamar dari tabel terlebih dahulu!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (dateCheckIn.getDate() == null || dateCheckOut.getDate() == null) {
+                JOptionPane.showMessageDialog(this, "Tanggal check-in dan check-out harus diisi!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Ambil kamar yang dipilih dari ArrayList berdasarkan index tabel
+            Kamar selectedKamar = daftarKamarTersedia.get(selectedRow);
+            
             Customer selectedCustomer = (Customer) cmbCustomer.getSelectedItem();
-            Kamar selectedKamar = (Kamar) cmbKamar.getSelectedItem();
             Date tglIn = new Date(dateCheckIn.getDate().getTime());
             Date tglOut = new Date(dateCheckOut.getDate().getTime());
-
             double hargaAwal = selectedKamar.getHarga();
 
             Booking b = new Booking(selectedCustomer, selectedKamar, tglIn, tglOut, hargaAwal);
             b.save();
 
-            JOptionPane.showMessageDialog(this, "Booking berhasil dibuat! ID Booking: " + b.getId_booking(), "Sukses", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, 
+                "Booking berhasil dibuat!\n" +
+                "ID Booking: " + b.getId_booking() + "\n" +
+                "Kamar: " + selectedKamar.getNomor_kamar() + "\n" +
+                "Tipe: " + selectedKamar.getTipe() + "\n" +
+                "Harga: Rp " + String.format("%,.0f", hargaAwal), 
+                "Sukses", JOptionPane.INFORMATION_MESSAGE);
             
+            // Reset form
             dateCheckIn.setDate(null);
             dateCheckOut.setDate(null);
-            cmbKamar.removeAllItems();
+            txtNomorKamar.setText("");
+            modelTabel.setRowCount(0);
+            daftarKamarTersedia.clear();
+            
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Gagal membuat booking: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
