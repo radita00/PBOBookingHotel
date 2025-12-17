@@ -79,29 +79,32 @@ public class frmBooking extends JFrame {
         // Inisialisasi Tiga Tabel dan Model secara eksplisit:
         
         // 1. Kamar Tersedia (Selectable)
-        Object[] kolom = {"No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
+        Object[] kolom = {"Pilih", "No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
         modelTersedia = new DefaultTableModel(kolom, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         tblKamarTersedia = new JTable(modelTersedia);
-        initTableListeners(tblKamarTersedia); // Tambahkan listener klik/double-klik
-        panelTabelUtama.add(createTablePanel("Kamar Tersedia", tblKamarTersedia, MAX_TABLE_HEIGHT, true));
+        initTableListeners(tblKamarTersedia, true); // Tabel dapat diklik
+        panelTabelUtama.add(createTablePanel("KAMAR TERSEDIA", tblKamarTersedia, MAX_TABLE_HEIGHT, true));
         panelTabelUtama.add(Box.createRigidArea(new Dimension(0, 15)));
         
         // 2. Kamar Terisi (Non-Selectable)
-        modelTerisi = new DefaultTableModel(kolom, 0) {
+        Object[] kolomStatus = {"No. Kamar", "Tipe Kamar", "Harga/Malam", "Status"};
+        modelTerisi = new DefaultTableModel(kolomStatus, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         tblKamarTerisi = new JTable(modelTerisi);
-        panelTabelUtama.add(createTablePanel("Kamar Terisi (Sedang Check-in)", tblKamarTerisi, MAX_TABLE_HEIGHT, false));
+        initTableListeners(tblKamarTerisi, false); // Tabel tidak dapat diklik
+        panelTabelUtama.add(createTablePanel("KAMAR TERISI (Sedang Check-in)", tblKamarTerisi, MAX_TABLE_HEIGHT, false));
         panelTabelUtama.add(Box.createRigidArea(new Dimension(0, 15)));
         
         // 3. Kamar Perawatan (Non-Selectable)
-        modelPerawatan = new DefaultTableModel(kolom, 0) {
+        modelPerawatan = new DefaultTableModel(kolomStatus, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         tblKamarPerawatan = new JTable(modelPerawatan);
-        panelTabelUtama.add(createTablePanel("Kamar Perawatan", tblKamarPerawatan, MAX_TABLE_HEIGHT / 2, false));
+        initTableListeners(tblKamarPerawatan, false); // Tabel tidak dapat diklik
+        panelTabelUtama.add(createTablePanel("KAMAR PERAWATAN", tblKamarPerawatan, MAX_TABLE_HEIGHT / 2, false));
         
         add(panelTabelUtama, BorderLayout.CENTER);
         
@@ -130,47 +133,68 @@ public class frmBooking extends JFrame {
     /**
      * Metode pembantu untuk mengatur properti dasar JTable dan menambahkan listeners.
      * Dipanggil di konstruktor.
+     * @param table JTable yang akan diatur
+     * @param isClickable apakah tabel dapat diklik/dipilih
      */
-    private void initTableListeners(JTable table) {
+    private void initTableListeners(JTable table, boolean isClickable) {
         table.getTableHeader().setReorderingAllowed(false);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         
-        // Event listener HANYA untuk tabel Kamar Tersedia
-        if (table == tblKamarTersedia) {
-            table.addMouseListener(new java.awt.event.MouseAdapter() {
-                public void mouseClicked(java.awt.event.MouseEvent evt) {
-                    if (evt.getClickCount() == 1) {
-                        pilihKamarDariTabel();
-                    } else if (evt.getClickCount() == 2) {
-                        buatBooking();
+        if (isClickable) {
+            // Hanya tabel tersedia yang dapat diklik
+            table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            
+            // Event listener HANYA untuk tabel Kamar Tersedia
+            if (table == tblKamarTersedia) {
+                table.addMouseListener(new java.awt.event.MouseAdapter() {
+                    public void mouseClicked(java.awt.event.MouseEvent evt) {
+                        if (evt.getClickCount() == 1) {
+                            pilihKamarDariTabel();
+                        } else if (evt.getClickCount() == 2) {
+                            buatBooking();
+                        }
                     }
-                }
-            });
+                });
+            }
+        } else {
+            // Tabel terisi dan perawatan tidak dapat diklik
+            table.setEnabled(false);
+            table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            table.setBackground(new Color(240, 240, 240));
+            table.setForeground(Color.DARK_GRAY);
         }
     }
     
     /**
-     * Metode pembantu untuk membuat JScrollPane dengan JTable dan tinggi terbatas.
+     * Metode pembantu untuk membuat panel dengan JTable dan judul.
      */
-    private JScrollPane createTablePanel(String title, JTable table, int maxHeight, boolean showInfo) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createTitledBorder(title));
+    private JPanel createTablePanel(String title, JTable table, int maxHeight, boolean showInfo) {
+        JPanel panel = new JPanel(new BorderLayout(5, 5));
+        panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         
+        // Label judul tabel dengan font tebal dan warna
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(new Font("Arial", Font.BOLD, 14));
+        lblTitle.setForeground(new Color(0, 102, 204));
+        lblTitle.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        panel.add(lblTitle, BorderLayout.NORTH);
+        
+        // ScrollPane dengan tabel
         JScrollPane scroll = new JScrollPane(table);
-        // Batasi tinggi scroll pane agar tidak memakan terlalu banyak ruang
         scroll.setPreferredSize(new Dimension(scroll.getPreferredSize().width, maxHeight));
         scroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, maxHeight));
-        
+        scroll.setBorder(BorderFactory.createLineBorder(new Color(200, 200, 200)));
         panel.add(scroll, BorderLayout.CENTER);
         
+        // Info tambahan untuk tabel tersedia
         if (showInfo) {
-            JLabel lblInfo = new JLabel("Klik untuk memilih kamar | Double-click untuk Booking");
+            JLabel lblInfo = new JLabel("💡 Klik untuk memilih kamar | Double-click untuk Booking langsung");
             lblInfo.setFont(new Font("Arial", Font.ITALIC, 11));
-            lblInfo.setHorizontalAlignment(SwingConstants.CENTER);
+            lblInfo.setForeground(new Color(100, 100, 100));
+            lblInfo.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
             panel.add(lblInfo, BorderLayout.SOUTH);
         }
         
-        return scroll;
+        return panel;
     }
     
     private void isiCustomer() {
@@ -241,8 +265,10 @@ public class frmBooking extends JFrame {
             if (daftarKamarTersedia.isEmpty()) {
                 JOptionPane.showMessageDialog(this, "Tidak ada kamar tersedia pada tanggal tersebut.", "Info", JOptionPane.INFORMATION_MESSAGE);
             } else {
-                for (Kamar k : daftarKamarTersedia) {
+                for (int i = 0; i < daftarKamarTersedia.size(); i++) {
+                    Kamar k = daftarKamarTersedia.get(i);
                     Object[] row = {
+                        "[ ]",  // Kolom pilih
                         k.getNomor_kamar(),
                         k.getTipe(),
                         String.format("Rp %,.0f", k.getHarga()),
@@ -265,7 +291,13 @@ public class frmBooking extends JFrame {
     private void pilihKamarDariTabel() {
         int selectedRow = tblKamarTersedia.getSelectedRow();
         if (selectedRow != -1) {
-            String nomorKamar = modelTersedia.getValueAt(selectedRow, 0).toString();
+            // Update kolom pilih untuk menunjukkan kamar yang dipilih
+            for (int i = 0; i < modelTersedia.getRowCount(); i++) {
+                modelTersedia.setValueAt("[ ]", i, 0);
+            }
+            modelTersedia.setValueAt("[✓]", selectedRow, 0);
+            
+            String nomorKamar = modelTersedia.getValueAt(selectedRow, 1).toString();
             txtNomorKamar.setText(nomorKamar);
         }
     }
@@ -296,8 +328,6 @@ public class frmBooking extends JFrame {
             double hargaAwal = selectedKamar.getHarga();
 
             // Panggil konstruktor Booking yang menyertakan userLogin
-            // Metode save ini akan membuat record baru di tabel booking, dan (ASUMSI) 
-            // memperbarui status kamar menjadi 'terisi' di tabel kamar.
             Booking b = new Booking(selectedCustomer, selectedKamar, userLogin, tglIn, tglOut, hargaAwal);
             b.save(); 
 
