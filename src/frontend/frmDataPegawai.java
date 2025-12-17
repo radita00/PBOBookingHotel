@@ -15,17 +15,17 @@ import java.util.ArrayList;
 public class frmDataPegawai extends JFrame {
     
     private JTable tblPegawai;
-    private JButton btnRefresh, btnTambah, btnEdit, btnHapus;
-    private JTextField txtCariPegawai; // 🆕 Field baru
+    private JButton btnRefresh, btnTambah, btnEdit, btnHapus, btnGantiPassword;
+    private JTextField txtCariPegawai;
 
     public frmDataPegawai() {
         setTitle("Data Pegawai (Admin Access)");
-        setSize(600, 450); // Tambah tinggi sedikit
+        setSize(700, 450);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); 
         setLayout(new BorderLayout(10, 10));
 
         // --- Panel Atas (Title & Search) ---
-        JPanel panelHeader = new JPanel(new BorderLayout(0, 10)); // Container untuk Title dan Search
+        JPanel panelHeader = new JPanel(new BorderLayout(0, 10));
         panelHeader.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // 1. Title
@@ -52,6 +52,7 @@ public class frmDataPegawai extends JFrame {
         JPanel panelKontrol = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
         btnTambah = new JButton("Tambah Pegawai");
         btnEdit = new JButton("Edit Pegawai");
+        btnGantiPassword = new JButton("Ganti Password");
         btnHapus = new JButton("Hapus Pegawai");
         btnRefresh = new JButton("Refresh Data");
         JButton btnTutup = new JButton("Tutup");
@@ -59,21 +60,23 @@ public class frmDataPegawai extends JFrame {
         Dimension btnSize = new Dimension(150, 30);
         btnTambah.setPreferredSize(btnSize);
         btnEdit.setPreferredSize(btnSize);
+        btnGantiPassword.setPreferredSize(btnSize);
         btnHapus.setPreferredSize(btnSize);
         btnRefresh.setPreferredSize(btnSize);
         btnTutup.setPreferredSize(btnSize);
         
         panelKontrol.add(btnTambah);
         panelKontrol.add(btnEdit);
+        panelKontrol.add(btnGantiPassword);
         panelKontrol.add(btnHapus);
         panelKontrol.add(btnRefresh);
         panelKontrol.add(btnTutup);
         add(panelKontrol, BorderLayout.SOUTH);
 
         // --- Logika ---
-        tampilkanDataPegawai(""); // Panggil dengan keyword kosong di awal
+        tampilkanDataPegawai("");
 
-        // 🆕 Listener Pencarian
+        // Listener Pencarian
         txtCariPegawai.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
@@ -83,16 +86,20 @@ public class frmDataPegawai extends JFrame {
 
         btnTambah.addActionListener(e -> tambahPegawai());
         btnEdit.addActionListener(e -> editPegawai());
+        btnGantiPassword.addActionListener(e -> gantiPassword());
         btnHapus.addActionListener(e -> hapusPegawai());
-        btnRefresh.addActionListener(e -> tampilkanDataPegawai("")); // Refresh membersihkan filter
+        btnRefresh.addActionListener(e -> {
+            txtCariPegawai.setText("");
+            tampilkanDataPegawai("");
+        });
         btnTutup.addActionListener(e -> dispose());
         
         setLocationRelativeTo(null);
     }
 
-    // 🔄 Modifikasi method untuk menerima keyword
+    // Modifikasi untuk menampilkan kolom password
     private void tampilkanDataPegawai(String keyword) {
-        String[] kolom = {"ID User", "Username", "Role"};
+        String[] kolom = {"ID User", "Username", "Password", "Role"};
         DefaultTableModel model = new DefaultTableModel(kolom, 0);
         
         Users userHelper = new Users();
@@ -101,13 +108,14 @@ public class frmDataPegawai extends JFrame {
         if (keyword.isEmpty()) {
             list = userHelper.getAllUsers();
         } else {
-            list = userHelper.searchUsers(keyword); // Panggil method search baru
+            list = userHelper.searchUsers(keyword);
         }
         
         for (Users u : list) {
             Object[] row = {
                 u.getId_user(),
                 u.getUsername(),
+                u.getPassword(), // Tampilkan password
                 u.getRole()
             };
             model.addRow(row);
@@ -116,14 +124,14 @@ public class frmDataPegawai extends JFrame {
         tblPegawai.setModel(model);
         
         if (tblPegawai.getColumnModel().getColumnCount() > 0) {
-            tblPegawai.getColumnModel().getColumn(0).setPreferredWidth(50);
+            tblPegawai.getColumnModel().getColumn(0).setPreferredWidth(60);
             tblPegawai.getColumnModel().getColumn(1).setPreferredWidth(150);
-            tblPegawai.getColumnModel().getColumn(2).setPreferredWidth(100);
+            tblPegawai.getColumnModel().getColumn(2).setPreferredWidth(150);
+            tblPegawai.getColumnModel().getColumn(3).setPreferredWidth(100);
         }
     }
     
     private void tambahPegawai() {
-        // ... (Logika Tambah Pegawai tetap sama) ...
         JDialog dialog = new JDialog(this, "Tambah Pegawai Baru", true);
         dialog.setLayout(new GridLayout(4, 2, 10, 10));
         dialog.setSize(400, 200);
@@ -160,13 +168,11 @@ public class frmDataPegawai extends JFrame {
             }
             
             Users newUser = new Users();
-            // Panggil registerPegawai jika role = 'pegawai'
             if (role.equals("pegawai") && newUser.registerPegawai(username, password)) {
                 JOptionPane.showMessageDialog(dialog, "Pegawai berhasil ditambahkan!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
                 dialog.dispose();
                 tampilkanDataPegawai("");
             } 
-            // Handle Admin role (karena registerPegawai defaultnya 'pegawai')
             else if (role.equals("admin")) {
                  try (java.sql.Connection conn = backend.DBHelper.getConnection();
                       java.sql.Statement stmt = conn.createStatement()) {
@@ -204,9 +210,8 @@ public class frmDataPegawai extends JFrame {
         
         int id = (int) tblPegawai.getValueAt(selectedRow, 0);
         String currentUsername = (String) tblPegawai.getValueAt(selectedRow, 1);
-        String currentRole = (String) tblPegawai.getValueAt(selectedRow, 2);
+        String currentRole = (String) tblPegawai.getValueAt(selectedRow, 3);
         
-        // ... (Logika Edit Pegawai tetap sama) ...
         JDialog dialog = new JDialog(this, "Edit Data Pegawai", true);
         dialog.setLayout(new GridLayout(4, 2, 10, 10));
         dialog.setSize(400, 200);
@@ -246,6 +251,74 @@ public class frmDataPegawai extends JFrame {
                 tampilkanDataPegawai("");
             } else {
                 JOptionPane.showMessageDialog(dialog, "Gagal memperbarui data pegawai.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        
+        btnBatal.addActionListener(e -> dialog.dispose());
+        
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+    
+    // Method baru untuk ganti password
+    private void gantiPassword() {
+        int selectedRow = tblPegawai.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Pilih pegawai yang akan diganti passwordnya!", "Peringatan", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        int id = (int) tblPegawai.getValueAt(selectedRow, 0);
+        String username = (String) tblPegawai.getValueAt(selectedRow, 1);
+        String currentPassword = (String) tblPegawai.getValueAt(selectedRow, 2);
+        
+        JDialog dialog = new JDialog(this, "Ganti Password - " + username, true);
+        dialog.setLayout(new GridLayout(4, 2, 10, 10));
+        dialog.setSize(450, 200);
+        
+        JPasswordField txtPasswordBaru = new JPasswordField(20);
+        JPasswordField txtKonfirmasiPassword = new JPasswordField(20);
+        JLabel lblPasswordLama = new JLabel("Password Saat Ini: " + currentPassword);
+        lblPasswordLama.setFont(new Font("Arial", Font.ITALIC, 11));
+        
+        dialog.add(lblPasswordLama);
+        dialog.add(new JLabel());
+        dialog.add(new JLabel("Password Baru:"));
+        dialog.add(txtPasswordBaru);
+        dialog.add(new JLabel("Konfirmasi Password:"));
+        dialog.add(txtKonfirmasiPassword);
+        
+        JPanel panelButton = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton btnSimpan = new JButton("Simpan Password");
+        JButton btnBatal = new JButton("Batal");
+        
+        panelButton.add(btnSimpan);
+        panelButton.add(btnBatal);
+        
+        dialog.add(new JLabel());
+        dialog.add(panelButton);
+        
+        btnSimpan.addActionListener(e -> {
+            String passwordBaru = new String(txtPasswordBaru.getPassword());
+            String konfirmasi = new String(txtKonfirmasiPassword.getPassword());
+            
+            if (passwordBaru.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Password baru tidak boleh kosong!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (!passwordBaru.equals(konfirmasi)) {
+                JOptionPane.showMessageDialog(dialog, "Konfirmasi password tidak cocok!", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            Users user = new Users();
+            if (user.updatePassword(id, passwordBaru)) {
+                JOptionPane.showMessageDialog(dialog, "Password berhasil diubah!", "Sukses", JOptionPane.INFORMATION_MESSAGE);
+                dialog.dispose();
+                tampilkanDataPegawai("");
+            } else {
+                JOptionPane.showMessageDialog(dialog, "Gagal mengubah password.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
         

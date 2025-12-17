@@ -3,6 +3,7 @@ package backend;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 
 // Asumsi ada kelas DBHelper yang memiliki selectQuery dan executeQuery
@@ -171,6 +172,23 @@ public class Users {
         }
         return false;
     }
+    //6. Reset Password (Untuk frmLupaPassword)
+    public boolean updatePassword(int id_user, String newPassword) {
+    String query = "UPDATE users SET password = ? WHERE id_user = ?";
+    try (Connection conn = DBHelper.getConnection();
+         PreparedStatement pstmt = conn.prepareStatement(query)) {
+        
+        pstmt.setString(1, newPassword);
+        pstmt.setInt(2, id_user);
+        
+        int result = pstmt.executeUpdate();
+        return result > 0;
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        return false;
+    }
+}
     
     @Override
     public String toString() {
